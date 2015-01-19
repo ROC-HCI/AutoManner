@@ -148,6 +148,24 @@ def shrink(operateOn, threshold):
         operateOn[idx_nz] -= threshold*np.sign(operateOn[idx_nz])
         return operateOn
 
+# Display the gradients
+def dispGrads(gralpha,grpsi):
+    _,D = np.shape(gralpha)    
+    pp.figure('Plot of Gradients')
+    pp.clf()
+    # Plot Gradient wrt psi
+    pp.subplot(211)    
+    for d in xrange(D):
+        pp.plot(grpsi[:,:,d])
+    pp.title('Gradf wrt psi')
+    # Plot Gradient wrt alpha 
+    pp.subplot(212)        
+    for d in xrange(D):
+        pp.stem(gralpha[:,d])
+    pp.title('Gradf wrt alpha')
+    pp.draw()
+    pp.pause(0.5)
+    
 # Plots alpha, psi, original and reconstructed data
 def dispPlots(alpha,psi,X,figureName):
     _,D = np.shape(alpha)
@@ -172,6 +190,8 @@ def dispPlots(alpha,psi,X,figureName):
     for d in xrange(D):
         pp.stem(alpha[:,d])
     pp.title('alpha')
+    pp.draw()
+    pp.pause(0.5)
 
 # Applies Convolutional Sparse Coding with Proximal Gradient Descent Algorithm    
 # X is N x K data tensor for only one joint 
@@ -208,12 +228,12 @@ def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
 
 #        # Update psi and alpha with line search        
 #        # Update alpha
-        gamma = 1.0
+        gamma = 10.0
         L = recon(alpha,psi)
         lxDiff = L - X
         gralpha = calcGrad_alpha(alpha,psi,lxDiff)
         oldObj = calcObjf(X,alpha,psi,beta)
-        while gamma > 1e-10:        
+        while gamma > 1e-4:        
             newAlpha = alpha - gamma*gralpha
             if calcObjf(X,newAlpha,psi,beta) >= oldObj:
                 gamma *= factor
@@ -222,12 +242,12 @@ def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         alpha = shrink(newAlpha,gamma*beta)
                 
         # Update psi
-        gamma = 1.0
+        gamma = 10.0
         L = recon(alpha,psi)
         lxDiff = L - X
         grpsi = calcGrad_psi(alpha,psi,lxDiff)
         oldObj = calcObjf(X,alpha,psi,beta)
-        while gamma > 1e-10:        
+        while gamma > 1e-4:        
             newPsi = psi - gamma*grpsi
             if calcObjf(X,alpha,newPsi,beta) >= oldObj:
                 gamma *= factor
@@ -240,7 +260,11 @@ def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         
         # Display        
         likeli = loglike(X,alpha,psi,beta)
-        #dispPlots(alpha,psi,X,'Iteration Data')
+        # Display alpha, psi, X and L
+        dispPlots(alpha,psi,X,'Iteration Data')
+        # Display Gradiants
+        dispGrads(gralpha,grpsi)
+        # Display Log Likelihood
         pp.figure('Log likelihood plot')
         pp.scatter(iter,likeli,c = 'b')
         pp.draw()
@@ -281,8 +305,8 @@ def main():
 #     # attempt to model only one joint for now    
 #    X = dat[:,:,jointID['WRIST_RIGHT']]
     #alpha,psi = fio.toyExample_large()
-    alpha,psi = fio.toyExample_medium()
-    #alpha,psi = fio.toyExample_small()
+    #alpha,psi = fio.toyExample_medium()
+    alpha,psi = fio.toyExample_small()
     
     # Display original data
     X = recon(alpha,psi)
