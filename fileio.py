@@ -105,15 +105,16 @@ def toyExample_large():
 
 # Generate and return a toy data
 def toyExample_medium():
-    alpha = np.zeros((100,1))
-    alpha[30] = 1
-    alpha[50] = 1
-    alpha[70] = -0.5
-    xVal = np.arange(-np.pi/2,np.pi/2,0.3)
+    alpha = np.zeros((250,1))
+    alpha[35] = 0.5
+    alpha[140] = -0.5
+    alpha[160] = 1
+    alpha[220] = -1
+    xVal = np.arange(-np.pi,np.pi,0.4)
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = np.sin(xVal)
-    psi[:,1,0] = np.sin(xVal + np.pi/2)
-    psi[:,2,0] = np.sin(xVal + 3*np.pi/4)
+    psi[:,1,0] = np.sin(2*xVal-np.pi)
+    psi[:,2,0] = np.sin(4*xVal-np.pi/4)
     return alpha,psi
 
 # Generate and return a toy data
