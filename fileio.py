@@ -104,13 +104,26 @@ def toyExample_large():
     return alpha,psi
 
 # Generate and return a toy data
+def toyExample_medium():
+    alpha = np.zeros((100,1))
+    alpha[30] = 1
+    alpha[50] = 1
+    alpha[70] = -0.5
+    xVal = np.arange(-np.pi/2,np.pi/2,0.3)
+    psi = np.zeros((len(xVal),3,1))
+    psi[:,0,0] = np.sin(xVal)
+    psi[:,1,0] = np.sin(xVal + np.pi/2)
+    psi[:,2,0] = np.sin(xVal + 3*np.pi/4)
+    return alpha,psi
+
+# Generate and return a toy data
 def toyExample_small():
     alpha = np.zeros((10,1))
     alpha[3] = 1
     alpha[7] = -0.5
     psi = np.zeros((3,3,1))
     psi[:,0,0] = [1,2,1]
-    psi[:,1,0] = [-1,-2,-1]
-    psi[:,2,0] = [-1,1,-1]
+    psi[:,1,0] = [1,2,1]
+    psi[:,2,0] = [0.5,1,0.5]
     return alpha,psi
 ############################## End File IO ####################################

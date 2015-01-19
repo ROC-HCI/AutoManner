@@ -126,8 +126,8 @@ def calcGrad_psi(alpha,psi,lxDiff):
 # M is a scalar integer representing time/frame length for AEB 
 def csc_init(M,N,K,D):
     psi = normalizePsi(np.random.randn(M,K,D))
-    #alpha = np.zeros((N,D))
-    alpha = np.random.randn(N,D)
+    alpha = np.zeros((N,D))
+    #alpha = np.random.randn(N,D)
     return psi,alpha
 
 #Normalize psi    
@@ -189,58 +189,53 @@ def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
     firstDeltaLikeli = 0
     countZero = 0
     while iter < iter_thresh:
-        L = recon(alpha,psi)
-        
-        # calculate the error
-        lxDiff = L - X
-        
-        # Calculate the gradients
-        grpsi = calcGrad_psi(alpha,psi,lxDiff)
-        gralpha = calcGrad_alpha(alpha,psi,lxDiff)        
 
-        # 2D Line Search: Update psi and alpha        
-#        gammaAlpha = 1.0
-#        gammaPsi = 1.0
-#        oldP = calcObjf(X,alpha,psi,beta)
-#        foundVal = False
-#        while gammaPsi > 5e-10:
-#            while gammaAlpha > 5e-10:
-#                newPsi = normalizePsi(psi - gammaPsi*grpsi)
-#                newAlpha = alpha - gammaAlpha*gralpha
-#    #            print 'Trying Gamma = ', gammaK
-#                if calcObjf(X,newAlpha,newPsi,beta)>=oldP:
-#                    gammaAlpha *= factor
-#                else:
-#    #                print 'Gamma = ', gammaK
-#                    foundVal = True
-#                    break
-#            if foundVal:
-#                break
-#            gammaPsi*=factor
-        
-        # 1 D Line Search: Update psi and alpha
-#        gamma = 1.0
-#        oldP = calcObjf(X,alpha,psi,beta)
-#        while gamma > 5e-10:
-#            newPsi = normalizePsi(psi - gamma*grpsi)
-#            newAlpha = alpha - gamma*gralpha
-#            if calcObjf(X,newAlpha,newPsi,beta)>=oldP:
-#                 gamma *= factor
-#            else:
-#                 break
-             
         # No Line search: Linear decrease of learning rate
-        gamma = 0.001/(iter+1)
-        newPsi = normalizePsi(psi - gamma*grpsi)
-        newAlpha = alpha - gamma*gralpha
-        
+#        gamma = 0.001/(iter+1)        
+#        # Update alpha
+#        L = recon(alpha,psi)        
+#        lxDiff = L - X        
+#        gralpha = calcGrad_alpha(alpha,psi,lxDiff)        
+#        alpha = alpha - gamma*gralpha        
+#        alpha = shrink(alpha,beta*gamma)      # Shrinkage
+#        
+#        # Update psi
+#        L = recon(alpha,psi)        
+#        lxDiff = L - X
+#        grpsi = calcGrad_psi(alpha,psi,lxDiff)
+#        psi = normalizePsi(psi - gamma*grpsi)
+               
 
-        # Shrinkage operation on alpha
-        newAlpha = shrink(newAlpha,beta*gamma)
+#        # Update psi and alpha with line search        
+#        # Update alpha
+        gamma = 1.0
+        L = recon(alpha,psi)
+        lxDiff = L - X
+        gralpha = calcGrad_alpha(alpha,psi,lxDiff)
+        oldObj = calcObjf(X,alpha,psi,beta)
+        while gamma > 1e-10:        
+            newAlpha = alpha - gamma*gralpha
+            if calcObjf(X,newAlpha,psi,beta) >= oldObj:
+                gamma *= factor
+            else:
+                break
+        alpha = shrink(newAlpha,gamma*beta)
+                
+        # Update psi
+        gamma = 1.0
+        L = recon(alpha,psi)
+        lxDiff = L - X
+        grpsi = calcGrad_psi(alpha,psi,lxDiff)
+        oldObj = calcObjf(X,alpha,psi,beta)
+        while gamma > 1e-10:        
+            newPsi = psi - gamma*grpsi
+            if calcObjf(X,alpha,newPsi,beta) >= oldObj:
+                gamma *= factor
+            else:
+                break        
+        psi = normalizePsi(psi - gamma*grpsi)
 
-        # Make the update permanent
-        psi = newPsi
-        alpha = newAlpha
+        # Count
         iter += 1
         
         # Display        
@@ -256,7 +251,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         if firstIter:
            firstIter = False
            firstDeltaLikeli = prevlikeli - likeli
-        print 'Gamma_ = ', gamma,\
+        print 'Gamma = ', gamma,\
         ' likeli = ', likeli, ' delta = ', prevlikeli - likeli, \
         '({:.2f}%)'.format((prevlikeli - likeli)/firstDeltaLikeli*100)
         if abs(prevlikeli - likeli)<0.00001:#*firstDeltaLikeli:
@@ -285,27 +280,31 @@ def main():
 #    # Length of AEB is set to 2 seconds (60 frames)
 #     # attempt to model only one joint for now    
 #    X = dat[:,:,jointID['WRIST_RIGHT']]
-    alpha,psi = fio.toyExample_small()
-    X = recon(alpha,psi)
+    #alpha,psi = fio.toyExample_large()
+    alpha,psi = fio.toyExample_medium()
+    #alpha,psi = fio.toyExample_small()
+    
     # Display original data
+    X = recon(alpha,psi)
     pp.figure('Original alpha, psi and Data')
     pp.clf()
     pp.subplot(311)
     for i in xrange(3):
+        pp.plot(X[:,i])
+    pp.title('X')    
+    pp.subplot(312)
+    for i in xrange(3):
         pp.plot(psi[:,i])
     pp.title('psi')
-    pp.subplot(312)
+    pp.subplot(313)
     pp.stem(alpha)
     pp.title('alpha')
-    pp.subplot(313)
-    for i in xrange(3):
-        pp.plot(X[:,i])
-    pp.title('X')
+    
     pp.draw()
     pp.pause(0.1)
     # D represents how many AEB we want to capture
     D = 1
-    (alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.01)
+    (alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.3)
     
     # Display the reconstructed values
     dispPlots(alpha_recon,psi_recon,X,'Final Data')
