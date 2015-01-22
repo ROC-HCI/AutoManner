@@ -76,6 +76,16 @@ def calcGrad_psi(alpha,psi,lxDiff):
             gradP_psi[:,k,d] = \
             sg.fftconvolve(lxDiff[:,k],alpha[::-1,d],'full')[(N-1):(N+M-1)] 
     return gradP_psi
+
+# Model functions
+def modelfunc_alpha(alpha_k,alpha,psi,X,lxDiff,Gamma):
+    return calcP(X,alpha_k,psi) + \
+    np.sum(calcGrad_alpha(alpha_k,psi,lxDiff)*(alpha - alpha_k)) + \
+    0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
+
+def modelfunc_psi(alpha,psi_k,psi,X,lxDiff,Gamma):
+    return calcP(X,alpha,psi_k) + np.sum(calcGrad_psi(alpha,psi_k,lxDiff)*(psi - psi_k)) + \
+    0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
     
 # Randomly initialize alpha and psi
 # alpha is N x D (axis-0:time/frame, axis-1: various AEB)
@@ -92,14 +102,19 @@ def csc_init(M,N,K,D):
 #Normalize psi    
 def normalizePsi(psi):
     M,K,D = np.shape(psi)
-#    for d in xrange(D):
-#        for k in xrange(K):
-#            psiNorm = np.linalg.norm(psi[:,k,d])
-#            if psiNorm !=0:
-#                psi[:,k,d] = psi[:,k,d]/psiNorm
-    psiNorm = np.linalg.norm(psi)
-    if (psiNorm!=0):
-        psi = psi/psiNorm
+    for d in xrange(D):
+        psiNorm = np.linalg.norm(psi[:,:,d])
+        if (psiNorm>0):
+            psi[:,:,d] = psi[:,:,d]/psiNorm
+    return psi
+
+# Project psi a set Norm(psi) < c
+def projectPsi(psi,c):
+    M,K,D = np.shape(psi)
+    for d in xrange(D):
+        psiNorm = np.linalg.norm(psi[:,:,d])
+        if (psiNorm>c):
+            psi[:,:,d] = c*psi[:,:,d]/psiNorm
     return psi
 
 # Apply Proximal/Shrinkage operation
@@ -147,18 +162,20 @@ def dispPlots(alpha,psi,X,figureName):
         pp.stem(alpha[:,d])
         pp.title('alpha')
         pp.draw()
-        pp.pause(0.1)
+        pp.pause(0.1) 
 
 # Applies Convolutional Sparse Coding with Proximal Gradient Descent Algorithm    
 # X is N x K data tensor for only one joint 
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
+def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
     iter = 0
     N,K = np.shape(X)
-    psi,alpha = csc_init(M,N,K,D)    # Random initialization
-        
+    #psi,alpha = csc_init(M,N,K,D)    # Random initialization
+    psi = psi_orig                    # Setting the initial value to actual
+    alpha = alpha_orig                # solution. Debug purpose only
+    
     factor = 0.5
     prevlikeli = loglike(X,alpha,psi,beta)
     maxDeltaLikeli = 0
@@ -194,8 +211,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
                 gamma_psi *= factor
             else:
                 break        
-        psi = normalizePsi(psi - gamma_psi*grpsi)   # Normalize
-        # Update alpha
+        psi = projectPsi(psi - gamma_psi*grpsi,1.0)   # Normalize        # Update alpha
         gamma_alpha = 100.0
         L = recon(alpha,psi)
         lxDiff = L - X
@@ -289,7 +305,7 @@ def main():
     pp.pause(0.1)
     # D represents how many AEB we want to capture
     D = 1
-    (alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.03)
+    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=0.06)
     
     # Display the reconstructed values
     dispPlots(alpha_recon,psi_recon,X,'Final Data')
