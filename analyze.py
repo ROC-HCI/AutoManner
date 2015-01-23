@@ -102,13 +102,13 @@ def csc_init(M,N,K,D):
     return psi,alpha
 
 #Normalize psi    
-def normalizePsi(psi):
-    M,K,D = np.shape(psi)
-    for d in xrange(D):
-        psiNorm = np.linalg.norm(psi[:,:,d])
-        if (psiNorm>0):
-            psi[:,:,d] = psi[:,:,d]/psiNorm
-    return psi
+#def normalizePsi(psi):
+#    M,K,D = np.shape(psi)
+#    for d in xrange(D):
+#        psiNorm = np.linalg.norm(psi[:,:,d])
+#        if (psiNorm>0):
+#            psi[:,:,d] = psi[:,:,d]/psiNorm
+#    return psi
 
 # Project psi a set Norm(psi) < c
 def projectPsi(psi,c):
@@ -176,13 +176,13 @@ def dispPlots(alpha,psi,X,figureName):
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
-#def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
+#def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
+def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
     iter = 0
     N,K = np.shape(X)
     psi,alpha = csc_init(M,N,K,D)    # Random initialization
-    #psi = psi_orig                    # Setting the initial value to actual
-    alpha = alpha_orig                # solution. Debug purpose only
+    #psi = psi_orig                  # Setting the initial value to actual
+    #alpha = alpha_orig               # solution. Debug purpose only
     
     factor = 0.5
     prevlikeli = loglike(X,alpha,psi,beta)
@@ -208,7 +208,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
 
         # Update psi and alpha with line search        
         # Update psi
-        gamma_psi = 10.0
+        gamma_psi = 1.0
         L = recon(alpha,psi)
         lxDiff = L - X
         grpsi = calcGrad_psi(alpha,psi,lxDiff)
@@ -222,7 +222,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         psi = projectPsi(newPsi,1.0)   # project + set psi 
         
         # Update Alpha        
-        gamma_alpha = 0.10
+        gamma_alpha = 1.0
         L = recon(alpha,psi)
         lxDiff = L - X
         gralpha = calcGrad_alpha(alpha,psi,lxDiff)
@@ -243,7 +243,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         # Display alpha, psi, X and L
         dispPlots(alpha,psi,X,'Iteration Data')
         # Display Gradiants
-        dispGrads(gralpha,grpsi)
+        # dispGrads(gralpha,grpsi)
         # Display Log Likelihood
         pp.figure('Log likelihood plot')
         pp.scatter(iter,likeli,c = 'b')
@@ -267,8 +267,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
                 break
             print countZero
         else:
-            prevlikeli = likeli
-        
+            prevlikeli = likeli        
     return alpha,psi
         
 def main():
@@ -313,8 +312,8 @@ def main():
     pp.pause(0.1)
     # D represents how many AEB we want to capture
     D = 1
-    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=1)
-    #(alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.03)
+    #(alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=1)
+    (alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.3)
     
     # Display the reconstructed values
     dispPlots(alpha_recon,psi_recon,X,'Final Data')
