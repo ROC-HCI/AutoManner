@@ -17,7 +17,7 @@ def convAlphaPsi(alpha,psi):
     convRes = np.zeros((szAlpha[0],szPsi[1],szAlpha[1]))
     for j in xrange(szAlpha[1]):
         for i in xrange(szPsi[1]):
-            convRes[:,i,j] = np.convolve(alpha[:,j],psi[:,i,j],'same')
+            convRes[:,i,j] = sg.fftconvolve(alpha[:,j],psi[:,i,j],'same')
     return convRes
 
 # Reconstruct the data from components
@@ -58,8 +58,8 @@ def calcGrad_alpha(alpha,psi,lxDiff):
             # this is actually a correlation operation. Notice that 
             # psi is actually flipped
             gradP_alpha[:,d,k] = \
-            sg.fftconvolve(lxDiff[:,k],psi[::-1,k,d],'full')[(M-1):]
-    gradP_alpha = np.sum(gradP_alpha,axis=2)/K  # Should we really avg?
+            sg.fftconvolve(lxDiff[:,k],psi[::-1,k,d],'same')
+    gradP_alpha = np.sum(gradP_alpha,axis=2)  # Should we really avg?
     return gradP_alpha
 
 # Manually Checked with sample data -- Working as indended
@@ -73,8 +73,8 @@ def calcGrad_psi(alpha,psi,lxDiff):
         for k in xrange(K):
             # this is actually a correlation operation. Notice that 
             # alpha is actually flipped
-            gradP_psi[:,k,d] = \
-            sg.fftconvolve(lxDiff[:,k],alpha[::-1,d],'full')[(N-1):(N+M-1)] 
+            gradP_psi[:,k,d] = sg.fftconvolve(lxDiff[:,k],alpha[::-1,d],\
+            'same')[(np.floor(N/2)-np.floor(M/2))+1:(np.floor(N/2)+np.floor(M/2))+1] 
     return gradP_psi
 
 # Model functions
@@ -84,7 +84,8 @@ def modelfunc_alpha(alpha_k,alpha,psi,X,lxDiff,Gamma):
     0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
 
 def modelfunc_psi(alpha,psi_k,psi,X,lxDiff,Gamma):
-    return calcP(X,alpha,psi_k) + np.sum(calcGrad_psi(alpha,psi_k,lxDiff)*(psi - psi_k)) + \
+    return calcP(X,alpha,psi_k) + \
+    np.sum(calcGrad_psi(alpha,psi_k,lxDiff)*(psi - psi_k)) + \
     0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
     
 # Randomly initialize alpha and psi
@@ -94,7 +95,8 @@ def modelfunc_psi(alpha,psi_k,psi,X,lxDiff,Gamma):
 # psi represents all the AEBs (D number of them)
 # M is a scalar integer representing time/frame length for AEB 
 def csc_init(M,N,K,D):
-    psi = normalizePsi(np.random.randn(M,K,D))
+    psi = projectPsi(np.random.randn(M,K,D),1.0)
+    #psi = projectPsi(np.ones((M,K,D)),1.0)
     alpha = np.zeros((N,D))
     #alpha = np.random.randn(N,D)
     return psi,alpha
@@ -113,17 +115,15 @@ def projectPsi(psi,c):
     M,K,D = np.shape(psi)
     for d in xrange(D):
         psiNorm = np.linalg.norm(psi[:,:,d])
-        if (psiNorm>c):
-            psi[:,:,d] = c*psi[:,:,d]/psiNorm
+        psi[:,:,d] = min(c,psiNorm)*(psi[:,:,d]/psiNorm)
     return psi
 
 # Apply Proximal/Shrinkage operation
-def shrink(operateOn, threshold):
-        idx_z = np.where(np.abs(operateOn)<=threshold)
-        idx_nz = np.where(np.abs(operateOn)>threshold)
-        operateOn[idx_z] = 0.
-        operateOn[idx_nz] -= threshold*np.sign(operateOn[idx_nz])
-        return operateOn
+def shrink(alpha, threshold):
+    for d in xrange(np.shape(alpha)[1]):
+        alpha[:,d] = np.sign(alpha[:,d])*np.maximum(np.zeros(\
+        np.shape(alpha[:,d])),np.abs(alpha[:,d])-threshold)
+    return alpha
 
 # Display the gradients
 def dispGrads(gralpha,grpsi):
@@ -148,19 +148,26 @@ def dispPlots(alpha,psi,X,figureName):
     for d in xrange(D):
         pp.figure(figureName + ' for component # '+'{:0}'.format(d))
         pp.clf()    
-        pp.subplot(411)
+        pp.subplot(511)
         pp.plot(X)
+        yrange = pp.ylim()        
         pp.title('Original Data')        
-        pp.subplot(412)
+        pp.subplot(512)
         L = recon(alpha,psi)
         pp.plot(L)
+        pp.ylim(yrange)
         pp.title('Reconstructed Data')    
-        pp.subplot(413)
+        pp.subplot(513)
+        pp.plot(L - X)
+        pp.ylim(yrange)
+        pp.title('Reconstructed - Original')        
+        pp.subplot(514)
         pp.plot(psi[:,:,d])
         pp.title('psi')
-        pp.subplot(414)
+        pp.subplot(515)
         pp.stem(alpha[:,d])
         pp.title('alpha')
+        pp.ylim(yrange)        
         pp.draw()
         pp.pause(0.1) 
 
@@ -170,10 +177,11 @@ def dispPlots(alpha,psi,X,figureName):
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
 def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
+#def csc_pgd(X,M,D,beta,iter_thresh=250,thresh = 1e-4):
     iter = 0
     N,K = np.shape(X)
-    #psi,alpha = csc_init(M,N,K,D)    # Random initialization
-    psi = psi_orig                    # Setting the initial value to actual
+    psi,alpha = csc_init(M,N,K,D)    # Random initialization
+    #psi = psi_orig                    # Setting the initial value to actual
     alpha = alpha_orig                # solution. Debug purpose only
     
     factor = 0.5
@@ -181,48 +189,50 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
     maxDeltaLikeli = 0
     countZero = 0
     while iter < iter_thresh:
-
         # No Line search: Linear decrease of learning rate
 #        gamma = 0.001/(iter+1)        
-#        # Update alpha
+##        # Update alpha
 #        L = recon(alpha,psi)        
 #        lxDiff = L - X        
 #        gralpha = calcGrad_alpha(alpha,psi,lxDiff)        
 #        alpha = alpha - gamma*gralpha        
 #        alpha = shrink(alpha,beta*gamma)      # Shrinkage
+#        print 'Gamma_alpha = ', '{:.4e}'.format(gamma),' ',
 #        
 #        # Update psi
 #        L = recon(alpha,psi)        
 #        lxDiff = L - X
 #        grpsi = calcGrad_psi(alpha,psi,lxDiff)
-#        psi = normalizePsi(psi - gamma*grpsi)
-               
+#        psi = projectPsi(psi - gamma*grpsi,1.0)
+#        print 'Gamma_psi = ', '{:.4e}'.format(gamma),' ',
 
         # Update psi and alpha with line search        
         # Update psi
-        gamma_psi = 100.0
+        gamma_psi = 10.0
         L = recon(alpha,psi)
         lxDiff = L - X
         grpsi = calcGrad_psi(alpha,psi,lxDiff)
-        oldObj = calcObjf(X,alpha,psi,beta)
-        while gamma_psi > (1e-3/(iter+1)):        
+        while True:        
             newPsi = psi - gamma_psi*grpsi
-            if calcObjf(X,alpha,newPsi,beta) >= oldObj:
+            if calcObjf(X,alpha,newPsi,beta) > calcObjf(X,alpha,psi,beta):
                 gamma_psi *= factor
             else:
-                break        
-        psi = projectPsi(psi - gamma_psi*grpsi,1.0)   # Normalize        # Update alpha
-        gamma_alpha = 100.0
+                break
+        print ' Gamma_psi = ', '{:.4e}'.format(gamma_psi), ' ',
+        psi = projectPsi(newPsi,1.0)   # project + set psi 
+        
+        # Update Alpha        
+        gamma_alpha = 0.10
         L = recon(alpha,psi)
         lxDiff = L - X
         gralpha = calcGrad_alpha(alpha,psi,lxDiff)
-        oldObj = calcObjf(X,alpha,psi,beta)
-        while gamma_alpha > (1e-3/(iter+1)):        
-            newAlpha = alpha - gamma_alpha*gralpha
-            if calcObjf(X,newAlpha,psi,beta) >= oldObj:
+        while True:
+            newAlpha = alpha - gamma_alpha*gralpha            
+            if calcObjf(X,alpha,psi,beta) < calcObjf(X,newAlpha,psi,beta):
                 gamma_alpha *= factor
             else:
                 break
+        print 'Gamma_alpha = ', '{:.4e}'.format(gamma_alpha),' ',
         alpha = shrink(newAlpha,gamma_alpha*beta)   # Shrinkage
         # Count
         iter += 1
@@ -243,14 +253,12 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         
         # Print status. Sparsity ratio is the percentage of error coming from
         # sparsity
-        print 'Gamma_alpha = ', '{:.4e}'.format(gamma_alpha),\
-        ' Gamma_psi = ', '{:.4e}'.format(gamma_psi),\
-        ' Sparsity Ratio = ', '{:.2e}%'.format((np.exp(likeli) - valP)/np.exp(likeli)*100),\
+        print ' Sparsity Ratio = ', '{:.2e}%'.format((np.exp(likeli) - valP)/np.exp(likeli)*100),\
         ' likeli = ', '{:.2f}'.format(likeli), \
         ' delta = ', '{:.2e}'.format(prevlikeli - likeli), \
         '({:.2f}%)'.format((prevlikeli - likeli)/maxDeltaLikeli*100)
         # terminate loop
-        allowZero_number = 30
+        allowZero_number = 3
         maxDeltaLikeli = max(maxDeltaLikeli,abs(prevlikeli - likeli))
         if (prevlikeli - likeli)<1e-5:#*maxDeltaLikeli:
             if (prevlikeli - likeli) <1e-5 and countZero < allowZero_number:
@@ -261,8 +269,6 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=250,thresh = 1e-4):
         else:
             prevlikeli = likeli
         
-        if abs(likeli - 1.0) < 0.1:
-            break
     return alpha,psi
         
 def main():
@@ -281,8 +287,10 @@ def main():
 #    # Length of AEB is set to 2 seconds (60 frames)
 #     # attempt to model only one joint for now    
 #    X = dat[:,:,jointID['WRIST_RIGHT']]
-    #alpha,psi = fio.toyExample_large()
+#    alpha,psi = fio.toyExample_large()
     alpha,psi = fio.toyExample_medium()
+#    alpha,psi = fio.toyExample_medium_boostHighFreq()
+#    alpha,psi = fio.toyExample_medium_1d()
     #alpha,psi = fio.toyExample_small()
     
     # Display original data
@@ -290,11 +298,11 @@ def main():
     pp.figure('Original alpha, psi and Data')
     pp.clf()
     pp.subplot(311)
-    for i in xrange(3):
+    for i in xrange(np.shape(X)[1]):
         pp.plot(X[:,i])
     pp.title('X')    
     pp.subplot(312)
-    for i in xrange(3):
+    for i in xrange(np.shape(psi)[1]):
         pp.plot(psi[:,i])
     pp.title('psi')
     pp.subplot(313)
@@ -305,12 +313,12 @@ def main():
     pp.pause(0.1)
     # D represents how many AEB we want to capture
     D = 1
-    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=0.06)
+    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=1)
+    #(alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.03)
     
     # Display the reconstructed values
     dispPlots(alpha_recon,psi_recon,X,'Final Data')
     pp.show()
-    
     
 if __name__ == '__main__':
     main()

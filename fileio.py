@@ -118,6 +118,46 @@ def toyExample_medium():
     return alpha,psi
 
 # Generate and return a toy data
+def toyExample_medium_boostHighFreq():
+    alpha = np.zeros((250,1))
+    alpha[35] = 0.5
+    alpha[140] = -0.5
+    alpha[160] = 1
+    alpha[220] = -1
+    xVal = np.arange(-np.pi,np.pi,0.4)
+    psi = np.zeros((len(xVal),3,1))
+    psi[:,0,0] = 0.5*np.sin(xVal)
+    psi[:,1,0] = np.sin(2*xVal-np.pi)
+    psi[:,2,0] = 2*np.sin(4*xVal-np.pi/4)
+    return alpha,psi
+
+# Generate and return a toy data
+def toyExample_medium_boostLowFreq():
+    alpha = np.zeros((250,1))
+    alpha[35] = 0.5
+    alpha[140] = -0.5
+    alpha[160] = 1
+    alpha[220] = -1
+    xVal = np.arange(-np.pi,np.pi,0.4)
+    psi = np.zeros((len(xVal),3,1))
+    psi[:,0,0] = 2*np.sin(xVal)
+    psi[:,1,0] = np.sin(2*xVal-np.pi)
+    psi[:,2,0] = 0.5*np.sin(4*xVal-np.pi/4)
+    return alpha,psi
+
+# Generate and return a toy data
+def toyExample_medium_1d():
+    alpha = np.zeros((250,1))
+    alpha[35] = 0.5
+    alpha[140] = -0.5
+    alpha[160] = 1
+    alpha[220] = -1
+    xVal = np.arange(-np.pi,np.pi,0.23)
+    psi = np.zeros((len(xVal),1,1))
+    psi[:,0,0] = np.sin(xVal)
+    return alpha,psi
+
+# Generate and return a toy data
 def toyExample_small():
     alpha = np.zeros((10,1))
     alpha[3] = 1
