@@ -92,11 +92,13 @@ def findWhichFile(rowIndx,boundDic):
     
 # Generate and return a toy data
 def toyExample_large():
-    alpha = np.zeros((5000,1))
-    alpha[500] = 1
+    alpha = np.zeros((8192,1))
+    alpha[800] = 1
     alpha[2500] = 0.5
     alpha[3000] = -1
-    xVal = np.arange(-np.pi,np.pi,0.0075)
+    alpha[4500] = -0.3
+    alpha[6000] = 1
+    xVal = np.linspace(-1,1,1024)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = np.sin(np.sin(xVal))
     psi[:,1,0] = np.sin(np.sin(np.pi + xVal))
@@ -105,12 +107,12 @@ def toyExample_large():
 
 # Generate and return a toy data
 def toyExample_medium():
-    alpha = np.zeros((250,1))
+    alpha = np.zeros((256,1))
     alpha[35] = 0.5
     alpha[140] = -0.5
     alpha[160] = 1
     alpha[220] = -1
-    xVal = np.arange(-np.pi,np.pi,0.4)
+    xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = np.sin(xVal)
     psi[:,1,0] = np.sin(2*xVal-np.pi)
@@ -119,12 +121,12 @@ def toyExample_medium():
 
 # Generate and return a toy data
 def toyExample_medium_boostHighFreq():
-    alpha = np.zeros((250,1))
+    alpha = np.zeros((256,1))
     alpha[35] = 0.5
     alpha[140] = -0.5
     alpha[160] = 1
     alpha[220] = -1
-    xVal = np.arange(-np.pi,np.pi,0.4)
+    xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = 0.5*np.sin(xVal)
     psi[:,1,0] = np.sin(2*xVal-np.pi)
@@ -133,12 +135,12 @@ def toyExample_medium_boostHighFreq():
 
 # Generate and return a toy data
 def toyExample_medium_boostLowFreq():
-    alpha = np.zeros((250,1))
+    alpha = np.zeros((256,1))
     alpha[35] = 0.5
     alpha[140] = -0.5
     alpha[160] = 1
     alpha[220] = -1
-    xVal = np.arange(-np.pi,np.pi,0.4)
+    xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = 2*np.sin(xVal)
     psi[:,1,0] = np.sin(2*xVal-np.pi)
@@ -147,24 +149,24 @@ def toyExample_medium_boostLowFreq():
 
 # Generate and return a toy data
 def toyExample_medium_1d():
-    alpha = np.zeros((250,1))
+    alpha = np.zeros((256,1))
     alpha[35] = 0.5
     alpha[140] = -0.5
     alpha[160] = 1
     alpha[220] = -1
-    xVal = np.arange(-np.pi,np.pi,0.23)
+    xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),1,1))
     psi[:,0,0] = np.sin(xVal)
     return alpha,psi
 
 # Generate and return a toy data
 def toyExample_small():
-    alpha = np.zeros((10,1))
-    alpha[3] = 1
-    alpha[7] = -0.5
-    psi = np.zeros((3,3,1))
-    psi[:,0,0] = [1,2,1]
-    psi[:,1,0] = [1,2,1]
-    psi[:,2,0] = [0.5,1,0.5]
+    alpha = np.zeros((16,1))
+    alpha[4] = 1
+    alpha[12] = -0.5
+    psi = np.zeros((4,1,1))
+    psi[:,0,0] = [1,2,1,-1]
+    psi[:,1,0] = [1,2,-1,1]
+    psi[:,2,0] = [0.5,1,0.5,0]
     return alpha,psi
 ############################## End File IO ####################################
