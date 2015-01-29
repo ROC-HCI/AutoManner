@@ -195,7 +195,7 @@ def calcGrad_psi(alpha,psi,X):
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-4):
+def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
 #def csc_pgd(X,M,D,beta,iter_thresh=1024,thresh = 1e-4):
     iter = 0
     N,K = np.shape(X)
@@ -204,7 +204,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-4):
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
     
     psi,alpha = csc_init(M,N,K,D)    # Random initialization
-    psi = psi_orig                 # Setting the initial value to actual
+    #psi = psi_orig                 # Setting the initial value to actual
     #alpha = alpha_orig               # solution. Debug purpose only
     
     factor = 0.5
@@ -212,6 +212,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-4):
     maxDeltaLikeli = 0
     countZero = 0
     while iter < iter_thresh:
+        print 'iter = ', iter,
         # No Line search: Linear decrease of learning rate
 #        gamma = 0.01#/(iter+1)        
 ##        # Update alpha
@@ -227,21 +228,21 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-4):
 
         # Update psi and alpha with line search        
         # Update psi
-#        gamma_psi = 16.0
-#        grpsi = calcGrad_psi(alpha,psi,X)
-#        while True:        
-#            newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-##            if calcObjf(X,alpha,newPsi,beta) > calcObjf(X,alpha,psi,beta):
-#            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi)<calcP(X,alpha,newPsi):
-#                gamma_psi *= factor
-#            else:
-#                break
-#            if gamma_psi<1e-15:
-#                gamma_psi = 0
-#                newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-#                break
-#        print ' Gamma_psi = ', '{:.4e}'.format(gamma_psi), ' ',
-#        psi = newPsi.copy()
+        gamma_psi = 16.0
+        grpsi = calcGrad_psi(alpha,psi,X)
+        while True:        
+            newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
+#            if calcObjf(X,alpha,newPsi,beta) > calcObjf(X,alpha,psi,beta):
+            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi)<calcP(X,alpha,newPsi):
+                gamma_psi *= factor
+            else:
+                break
+            if gamma_psi<1e-15:
+                gamma_psi = 0
+                newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
+                break
+        print ' Gamma_psi = ', '{:.4e}'.format(gamma_psi), ' ',
+        psi = newPsi.copy()
 #        
 #        # Update Alpha        
         gamma_alpha = 16.0
@@ -266,15 +267,15 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-4):
         likeli = loglike(X,alpha,psi,beta)
         valP = calcP(X,alpha,psi)
         # Display alpha, psi, X and L
-        dispPlots(alpha,psi,X,'Iteration Data')
+        #dispPlots(alpha,psi,X,'Iteration Data')
         # Display Gradiants
-        # dispGrads(gralpha,grpsi)
+        #dispGrads(gralpha,grpsi)
         # Display Log Likelihood
-        pp.figure('Log likelihood plot')
-        pp.scatter(iter,likeli,c = 'b')
-        pp.title('Likelihood Plot for Beta = ' + '{:0.2f}'.format(beta))
-        pp.draw()
-        pp.pause(0.1)
+#        pp.figure('Log likelihood plot')
+#        pp.scatter(iter,likeli,c = 'b')
+#        pp.title('Likelihood Plot for Beta = ' + '{:0.2f}'.format(beta))
+#        pp.draw()
+#        pp.pause(0.1)
         # Print status. Sparsity ratio is the percentage of error coming from
         # sparsity
         delta = prevlikeli - likeli
@@ -321,8 +322,8 @@ def main():
 #    X = dat[:,:,jointID['WRIST_RIGHT']]
 #    alpha,psi = fio.toyExample_large()
 #    alpha,psi = fio.toyExample_medium()
-#    alpha,psi = fio.toyExample_medium_boostHighFreq()
-    alpha,psi = fio.toyExample_medium_1d()
+    alpha,psi = fio.toyExample_medium_boostHighFreq()
+#    alpha,psi = fio.toyExample_medium_1d()
     #alpha,psi = fio.toyExample_small()
     
     # Display original data
@@ -344,7 +345,7 @@ def main():
     pp.pause(1)
     # D represents how many AEB we want to capture
     D = 1
-    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=0.3)
+    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=0.05)
     #(alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.3)
     
     # Display the reconstructed values
