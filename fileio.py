@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Dec 15 00:49:26 2014
-
-@author: Md.Iftekhar
-"""
 import numpy as np
 import os
 
@@ -13,8 +7,7 @@ def readPointDic(dicFilename):
     with open(dicFilename) as f:
         pointName = [dat.strip().split('=') for dat in f.readlines()]
         points = dict((elem[0].strip(),int(elem[1])) for elem in pointName)
-        return points 
-
+        return points
 # returns a tensor containing the kinect skeleton data and corresponding 
 # timestamp (in Second) for each row. Also the screen coordinates.
 def readDataFile(readDataFile,joints):
@@ -34,11 +27,9 @@ def readDataFile(readDataFile,joints):
     if not joints:
         joints = range(20)
     return dat[:,joints,:],timeStampSec,screenXY
-
 # We delete last nSec * 30 frames because that is usually garbage
 def clean(dat,nSec = 10):
-    return dat[:-(30*nSec),:,:]
-    
+    return dat[:-(30*nSec),:,:]    
 # Normalization of the skeleton data. x,y,z components are individually
 # meansubtracted and divided by
 def normalizeDat(dat):    
@@ -48,7 +39,6 @@ def normalizeDat(dat):
     for j in xrange(np.size(dat,axis=1)):
         dat[:,j,:]/=datStd[j]
     return dat
-
 # Reads all the skeleton tracking file in a folder and concatenates to 
 # to a single 3 dimensional array. First dimension is for frame number. 2nd and 
 # 3rd dimension is for jointID and (x,y,z) values respectively 
@@ -81,7 +71,6 @@ def readAllFiles(fullFiles,suffix,preprocess,joints=(),nSec = 10):
     allData=np.delete(allData,0,axis=0)
     allData = np.transpose(allData,axes=[0,2,1])
     return allData,boundDic
-
 # Given any row index and the doundary dictionary it returns from which
 # file the row is coming. Important to trace back for finding the frame in
 # the video
@@ -89,22 +78,16 @@ def findWhichFile(rowIndx,boundDic):
     rowNumber = np.where((np.array(boundDic.keys())[:,0]<rowIndx) & \
     (np.array(boundDic.keys())[:,1]>rowIndx))[0][0]
     return boundDic.values()[rowNumber]
-    
 # Generate and return a toy data
-def toyExample_large():
-    alpha = np.zeros((8192,1))
-    alpha[800] = 1
-    alpha[2500] = 0.5
-    alpha[3000] = -1
-    alpha[4500] = -0.3
-    alpha[6000] = 1
-    xVal = np.linspace(-1,1,1024)*np.pi
-    psi = np.zeros((len(xVal),3,1))
-    psi[:,0,0] = np.sin(np.sin(xVal))
-    psi[:,1,0] = np.sin(np.sin(np.pi + xVal))
-    psi[:,2,0] = np.sin(np.sin(np.pi/4 + xVal))
-    return alpha,psi
-
+def toyExample_small():
+    alpha = np.zeros((16,1))
+    alpha[4] = 1
+    alpha[12] = -0.5
+    psi = np.zeros((4,1,1))
+    psi[:,0,0] = [1,2,1,-1]
+    psi[:,1,0] = [1,2,-1,1]
+    psi[:,2,0] = [0.5,1,0.5,0]
+    return alpha,psi    
 # Generate and return a toy data
 def toyExample_medium():
     alpha = np.zeros((256,1))
@@ -118,7 +101,6 @@ def toyExample_medium():
     psi[:,1,0] = np.sin(2*xVal-np.pi)
     psi[:,2,0] = np.sin(4*xVal-np.pi/4)
     return alpha,psi
-
 # Generate and return a toy data
 def toyExample_medium_boostHighFreq():
     alpha = np.zeros((256,1))
@@ -132,7 +114,6 @@ def toyExample_medium_boostHighFreq():
     psi[:,1,0] = np.sin(2*xVal-np.pi)
     psi[:,2,0] = 2*np.sin(4*xVal-np.pi/4)
     return alpha,psi
-
 # Generate and return a toy data
 def toyExample_medium_boostLowFreq():
     alpha = np.zeros((256,1))
@@ -146,7 +127,6 @@ def toyExample_medium_boostLowFreq():
     psi[:,1,0] = np.sin(2*xVal-np.pi)
     psi[:,2,0] = 0.5*np.sin(4*xVal-np.pi/4)
     return alpha,psi
-
 # Generate and return a toy data
 def toyExample_medium_1d():
     alpha = np.zeros((256,1))
@@ -158,15 +138,38 @@ def toyExample_medium_1d():
     psi = np.zeros((len(xVal),1,1))
     psi[:,0,0] = np.sin(xVal)
     return alpha,psi
-
 # Generate and return a toy data
-def toyExample_small():
-    alpha = np.zeros((16,1))
-    alpha[4] = 1
-    alpha[12] = -0.5
-    psi = np.zeros((4,1,1))
-    psi[:,0,0] = [1,2,1,-1]
-    psi[:,1,0] = [1,2,-1,1]
-    psi[:,2,0] = [0.5,1,0.5,0]
+def toyExample_medium_1d_multicomp():
+    alpha = np.zeros((256,2))
+    alpha[35,0] = 0.5
+    alpha[140,0] = -0.5
+    alpha[160,0] = 1
+    alpha[220,0] = -1
+    alpha[50,1] = 0.5
+    alpha[100,1] = -0.5
+    alpha[200,1] = 1
+    xVal = np.linspace(-1,1,32)*np.pi
+    psi = np.zeros((len(xVal),1,2))
+    psi[:,0,0] = np.sin(xVal)
+    psi[:,0,1] = np.pi - np.abs(xVal)
+    return alpha,psi
+# Generate and return a toy data
+def toyExample_medium_3d_multicomp():
+    alpha = np.zeros((256,2))
+    alpha[35,0] = 0.5
+    alpha[140,0] = -0.5
+    alpha[160,0] = 1
+    alpha[220,0] = -1
+    alpha[50,1] = 0.5
+    alpha[100,1] = -0.5
+    alpha[200,1] = 1
+    xVal = np.linspace(-1,1,32)*np.pi
+    psi = np.zeros((len(xVal),3,2))
+    psi[:,0,0] = np.sin(xVal)
+    psi[:,1,0] = np.sin(xVal/2.0)
+    psi[:,2,0] = np.sin(xVal/2.0 + np.pi/2)
+    psi[:,0,1] = np.pi - np.abs(xVal)
+    psi[:,1,1] = np.pi - np.abs(xVal/2.0)
+    psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
 ############################## End File IO ####################################
