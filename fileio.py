@@ -1,3 +1,14 @@
+''' File Input-Output Module
+    ========================
+    Functions starting with the prefix "toyExample" are sample datasets
+    created for testing while writing various sections of the code.
+    Other functions are created to load and preprocess the original dataset.
+-------------------------------------------------------------------------------
+    Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
+    Rochester Human-Computer Interaction (ROCHCI)
+    University of Rochester
+-------------------------------------------------------------------------------
+'''
 import numpy as np
 import os
 
@@ -168,6 +179,20 @@ def toyExample_medium_3d_multicomp():
     psi[:,0,0] = np.sin(xVal)
     psi[:,1,0] = np.sin(xVal/2.0)
     psi[:,2,0] = np.sin(xVal/2.0 + np.pi/2)
+    psi[:,0,1] = np.pi - np.abs(xVal)
+    psi[:,1,1] = np.pi - np.abs(xVal/2.0)
+    psi[:,2,1] = np.abs(xVal/2.0)
+    return alpha,psi
+# Generate and return a toy data
+def toyExample_large_3d_multicomp(N=8192,M=64):
+    alpha = np.zeros((N,2))
+    alpha[np.random.rand(N)>0.9975,0]=1.0
+    alpha[np.random.rand(N)>0.9975,1]=1.0
+    xVal = np.linspace(-1,1,M)*np.pi
+    psi = np.zeros((len(xVal),3,2))
+    psi[:,0,0] = np.sin(xVal)
+    psi[:,1,0] = np.sin(xVal/2.0)
+    psi[:,2,0] = np.sin(xVal/4.0 + np.pi/2)
     psi[:,0,1] = np.pi - np.abs(xVal)
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)

@@ -1,3 +1,13 @@
+''' Human Behavior Analysis Module
+    ==============================
+    This module extracts Behavioral Action Units (BAU's) using convolutional
+    sparse coding
+-------------------------------------------------------------------------------
+    Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
+    Rochester Human-Computer Interaction (ROCHCI)
+    University of Rochester
+-------------------------------------------------------------------------------
+'''
 import numpy as np
 import scipy.signal as sg
 import scipy.io as sio
@@ -18,7 +28,7 @@ def dispGrads(gralpha,grpsi):
         pp.title('Gradf wrt psi')
         # Plot Gradient wrt alpha 
         pp.subplot(212)        
-        pp.stem(gralpha[:,d])
+        pp.plot(gralpha[:,d])
         pp.title('Gradf wrt alpha')
         pp.draw()
         pp.pause(1)
@@ -45,22 +55,21 @@ def dispPlots(alpha,psi,X,figureName):
         pp.plot(psi[:,:,d])
         pp.title('psi')
         pp.subplot(515)
-        pp.stem(alpha[:,d])
+        pp.plot(alpha[:,d])
         pp.title('alpha')     
         pp.draw()
         pp.pause(0.3)
 # Plot the original alpha, psi and X
-def dispOriginal(alpha,psi,X):
+def dispOriginal(alpha,psi):
     pp.figure('Original Alpha and Psi')
     pp.clf()
-    N,D = np.shape(alpha)
-    M,K,_ = np.shape(psi)
+    _,D = np.shape(alpha)
     for d in xrange(D):
         pp.subplot(D,2,2*d+1)
         pp.plot(psi[:,:,d])
         pp.title('psi')
         pp.subplot(D,2,2*d+2)
-        pp.stem(alpha[:,d])
+        pp.plot(alpha[:,d])
         pp.title('alpha')
         pp.draw()
         pp.pause(1)    
@@ -184,7 +193,7 @@ def calcGrad_psi(alpha,psi,X):
     for d in xrange(D):    
         for k in xrange(K):
             # this is actually a correlation operation. Notice that 
-            # alpha is actually flipped
+            # alpha is flipped
             gradP_psi[:,k,d] = sg.fftconvolve(lxDiff[:,k],alpha[::-1,d],\
             'full')[(N-M/2):(N+M/2)] 
     return gradP_psi    
@@ -194,44 +203,29 @@ def calcGrad_psi(alpha,psi,X):
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
-#def csc_pgd(X,M,D,beta,iter_thresh=1024,thresh = 1e-4):
+#def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
+def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
     iter = 0
     N,K = np.shape(X)
-
     # M and N must be nonzero and power of two
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
-
     psi,alpha = csc_init(M,N,K,D)   # Random initialization
     #psi = psi_orig                 # Setting the initial value to actual
-    #alpha = alpha_orig + 0.01      # solution. Debug purpose only
-    
+    #alpha = alpha_orig + 0.01      # solution. Debug purpose only    
     factor = 0.5
     prevlikeli = loglike(X,alpha,psi,beta)
     maxDeltaLikeli = 0
     countZero = 0
+    # Main optimization loop
     while iter < iter_thresh:
         print 'iter = ', iter,
-        # No Line search: Linear decrease of learning rate
-#        gamma = 0.01#/(iter+1)        
-##        # Update alpha
-#        gralpha = calcGrad_alpha(alpha,psi,X)        
-#        alpha = alpha - gamma*gralpha        
-#        alpha = shrink(alpha,beta*gamma)      # Shrinkage
-#        print 'Gamma_alpha = ', '{:.4e}'.format(gamma),' ',
-#        
-#        # Update psi
-#        grpsi = calcGrad_psi(alpha,psi,X)
-#        psi = projectPsi(psi - gamma*grpsi,1.0)
-#        print 'Gamma_psi = ', '{:.4e}'.format(gamma),' ',
-#
         # Update psi and alpha with line search        
         # Update psi
         gamma_psi = 16.0
+        # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X)
         while True:        
             newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-#            if calcObjf(X,alpha,newPsi,beta) > calcObjf(X,alpha,psi,beta):
             if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi)<calcP(X,alpha,newPsi):
                 gamma_psi *= factor
             else:
@@ -242,13 +236,12 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
                 break
         print ' Gamma_psi = ', '{:.4e}'.format(gamma_psi), ' ',
         psi = newPsi.copy()
-#        
 #        # Update Alpha        
         gamma_alpha = 16.0
+        # Calculate gradient of P with respect to alpha
         gralpha = calcGrad_alpha(alpha,psi,X)
         while True:
             newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
-#            if calcObjf(X,alpha,psi,beta) < calcObjf(X,newAlpha,psi,beta):
             if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha)<\
             calcP(X,newAlpha,psi):
                 gamma_alpha *= factor
@@ -260,22 +253,22 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
                 break
         print 'Gamma_alpha = ', '{:.4e}'.format(gamma_alpha),' ',
         alpha = newAlpha.copy()
-        # Count
+        # Count the iteration
         iter += 1
-        
         # Debug and Display        
         likeli = loglike(X,alpha,psi,beta)
         valP = calcP(X,alpha,psi)
-#        # Display alpha, psi, X and L
-#        dispPlots(alpha,psi,X,'Iteration Data')
-#        # Display Gradiants
-#        dispGrads(gralpha,grpsi)
-#        # Display Log Likelihood
-#        pp.figure('Log likelihood plot')
-#        pp.scatter(iter,likeli,c = 'b')
-#        pp.title('Likelihood Plot for Beta = ' + '{:0.2f}'.format(beta))
-#        pp.draw()
-#        pp.pause(0.1)
+        if disp:
+            # Display alpha, psi, X and L
+            dispPlots(alpha,psi,X,'Iteration Data')
+            # Display Gradiants
+            dispGrads(gralpha,grpsi)
+    #        # Display Log Likelihood
+            pp.figure('Log likelihood plot')
+            pp.scatter(iter,likeli,c = 'b')
+            pp.title('Likelihood Plot for Beta = ' + '{:0.2f}'.format(beta))
+            pp.draw()
+            pp.pause(1)
         # Print status. Sparsity ratio is the percentage of error coming from
         # sparsity
         delta = prevlikeli - likeli
@@ -287,8 +280,7 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
         if maxDeltaLikeli!=0.0:
             print '({:.2f}%)'.format((prevlikeli - likeli)/maxDeltaLikeli*100)
         else:
-            print
-        
+            print        
         # terminate loop
         allowZero_number = 8
         if (delta<thresh) or np.isnan(delta):
@@ -302,39 +294,40 @@ def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
             countZero = 0
             prevlikeli = likeli        
     return alpha,psi
-
 ################################## Main Entrance ##############################        
 def main():
 #    # read joint names and data file
-#    jointID = fio.readPointDic('Data/pointDef.dic')    
-#    #dat,timeIndx,_ = readDataFile('Data/','.csv',joints=(\
-#    # jointID['ELBOW_RIGHT'],jointID['WRIST_RIGHT']),preprocess=True)
-#    #dat,boundDic = fio.readAllFiles('Data/','.csv',preprocess=True)
-#    #sio.savemat('Data/jointInfo.mat',{'dat':dat})
+    #jointID = fio.readPointDic('Data/pointDef.dic')    
+    #dat,timeIndx,_ = readDataFile('Data/','.csv',joints=(\
+    # jointID['ELBOW_RIGHT'],jointID['WRIST_RIGHT']),preprocess=True)
+    #dat,boundDic = fio.readAllFiles('Data/','.csv',preprocess=True)
+    #sio.savemat('Data/jointInfo.mat',{'dat':dat})
 #    dat = sio.loadmat('Data/jointInfo.mat')['dat']
 #    
 #    #TODO: Delete this line. For debug only
 #    dat = dat[:500,:,:]
 #    
-#    # apply Shift Invariant Sparse Coding. 
-#    # Length of AEB is set to 2 seconds (60 frames)
+
 #    # attempt to model only one joint for now    
 #    X = dat[:,:,jointID['WRIST_RIGHT']]
-#    alpha,psi = fio.toyExample_large()
+
+#    # Toy Data
+#    # ========
+#    alpha,psi = fio.toyExample_small()
 #    alpha,psi = fio.toyExample_medium()
 #    alpha,psi = fio.toyExample_medium_boostHighFreq()
 #    alpha,psi = fio.toyExample_medium_1d()
 #    alpha,psi = fio.toyExample_medium_1d_multicomp()
-    alpha,psi = fio.toyExample_medium_3d_multicomp()
-    #alpha,psi = fio.toyExample_small()
-    
-    # Build and original data
+    alpha,psi = fio.toyExample_medium_3d_multicomp() 
+#    alpha,psi = fio.toyExample_large_3d_multicomp()
     X = recon(alpha,projectPsi(psi,1.0))
-    dispOriginal(alpha,psi,X)
-    # D represents how many AEB we want to capture
-    D = 2
-    (alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=D,beta=0.05)
-    #(alpha_recon,psi_recon) = csc_pgd(X,M=(len(psi)),D=D,beta=0.3)
+    dispOriginal(alpha,psi)    
+
+    # Apply Convolutional Sparse Coding. 
+    # Length of AEB is set to 2 seconds (60 frames)    
+    # D represents how many Action Units we want to capture
+    #(alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=2,beta=0.05)
+    (alpha_recon,psi_recon) = csc_pgd(X,M=64,D=2,beta=0.05)
     # Display the reconstructed values
     dispPlots(alpha_recon,psi_recon,X,'Final Data')
     pp.show()
