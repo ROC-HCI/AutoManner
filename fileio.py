@@ -11,36 +11,46 @@
 '''
 import numpy as np
 import os
+import plotskeleton as ps
 
 #################################### FILE IO ##################################
-# read point definition file
+# Read point definition file
 def readPointDic(dicFilename):
     with open(dicFilename) as f:
         pointName = [dat.strip().split('=') for dat in f.readlines()]
         points = dict((elem[0].strip(),int(elem[1])) for elem in pointName)
         return points
-# returns a tensor containing the kinect skeleton data and corresponding 
-# timestamp (in Second) for each row. Also the screen coordinates.
-def readDataFile(readDataFile,joints):
+
+# Read the speech boundary file. This file contains information on where the
+# actual speech started and where finished
+# Returns videoList, start_End_time_List
+def readSpeechBoundary(csvFileName):
+    with open(csvFileName) as f:
+        f.readline()
+        temp = [x.split(',') for x in f.readlines()]
+        videoList = [x[0] for x in temp]
+        starEndList = np.array([x[1:] for x in temp]).astype(np.int)
+    return videoList,starEndList
+
+# Reads the skeleton data file (csv)
+# returns data, data_header, ScreenXY, ScreenXY_header, Orientation, Orien_Head
+def readDataFile(readDataFile):
     # read datafile
     with open(readDataFile) as f:
+        header = f.readline().split(',')[0:-1]
         temp = [x.split(',') for x in f.readlines()]
-    # Convert the data into a convenient numpy array
-    dat = np.array([x[0:-1] for x in temp]).astype(np.float)
-    timeStampSec = (dat[:,0] - dat[0,0])/300    # copy the timestamp
-    dat = np.delete(dat,0,axis=1)               # Delete timestamp column
-    # Copy x and y locations of the points
-    screenXY = dat[:,(np.arange(101)%5==3) | (np.arange(101)%5==4)]
-    # reshape the data in a higher dimensional tensor
-    m,n = dat.shape
-    dat.shape = (m,20,5)
-    dat = np.delete(dat,(3,4),axis=2)
-    if not joints:
-        joints = range(20)
-    return dat[:,joints,:],timeStampSec,screenXY
-# We delete last nSec * 30 frames because that is usually garbage
+        temp = np.array([x[0:-1] for x in temp]).astype(np.float)
+    # Read indices
+    scnIdx=[i for i,x in enumerate(header) if x == 'ScreenX' or x == 'ScreenY']
+    orientIdx = range(scnIdx[-1]+1,len(header))
+    datIdx = [x for x in range(scnIdx[-1]+1) if x not in scnIdx]
+    return temp[:,datIdx], [header[L] for L in datIdx],\
+    temp[:,orientIdx],[header[L] for L in orientIdx],\
+    temp[:,scnIdx],[header[L] for L in scnIdx]
+    
+# We delete the first and last nSec * 30 frames because that is usually garbage
 def clean(dat,nSec = 10):
-    return dat[:-(30*nSec),:,:]    
+    return dat[30*nSec:-30*nSec,:,:]
 # Normalization of the skeleton data. x,y,z components are individually
 # meansubtracted and divided by
 def normalizeDat(dat):    
@@ -55,7 +65,7 @@ def normalizeDat(dat):
 # 3rd dimension is for jointID and (x,y,z) values respectively 
 # returns a tensor containing the data from all files
 # Applies some rudimentary preprocessing if preprocess is turned on
-def readAllFiles(fullFiles,suffix,preprocess,joints=(),nSec = 10):
+def readAllFiles_Concat(fullFiles,suffix,preprocess,joints=(),nSec = 10):
     if not joints:
         m = 20
     else:
@@ -198,3 +208,12 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
 ############################## End File IO ####################################
+def moduleTest():
+    jointId = readPointDic('Data/pointDef.dic')
+    videName,startEnd = readSpeechBoundary('Data/Speech_Boundary.dat')
+    data,dataHead,orient,orientHead,_,_ = readDataFile('Data/test_Data.csv')
+    
+    ps.animate(data,orient)
+    
+if __name__ == '__main__':
+    moduleTest()

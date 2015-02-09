@@ -1,4 +1,8 @@
-Data/
+Related_Papers/
+Results/
+Data/*.csv
+Data/*.mat
+Data/Data_Collector/
 *.pyc
 .dropbox
 desktop.ini

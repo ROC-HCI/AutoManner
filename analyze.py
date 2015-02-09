@@ -8,6 +8,7 @@
     University of Rochester
 -------------------------------------------------------------------------------
 '''
+from argparse import ArgumentParser
 import numpy as np
 import scipy.signal as sg
 import scipy.io as sio
@@ -263,7 +264,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
             dispPlots(alpha,psi,X,'Iteration Data')
             # Display Gradiants
             dispGrads(gralpha,grpsi)
-    #        # Display Log Likelihood
+            # Display Log Likelihood
             pp.figure('Log likelihood plot')
             pp.scatter(iter,likeli,c = 'b')
             pp.title('Likelihood Plot for Beta = ' + '{:0.2f}'.format(beta))
@@ -294,23 +295,57 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
             countZero = 0
             prevlikeli = likeli        
     return alpha,psi
-################################## Main Entrance ##############################        
+################################# Main Helper #################################
+def buildArg():
+    args = ArgumentParser(description="Automatic Extraction of Human Behavior")
+    args.add_argument('-f',nargs='+',\
+    help='A csv filename for learning the behavioral patterns \
+    or provide a foldername containing a number of csv files. The name of the\
+    folder must finish with a slash. Filename must finish with .csv',\
+    required=True)
+
+    args.add_argument('-j',nargs='*',\
+    default='WRIST_RIGHT',\
+    choices=['HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
+    'SHOULDER_LEFT','ELBOW_LEFT','WRIST_LEFT','HAND_LEFT',\
+    'SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT',\
+    'HIP_LEFT','KNEE_LEFT','ANKLE_LEFT','FOOT_LEFT','HIP_RIGHT',\
+    'KNEE_RIGHT','ANKLE_RIGHT','FOOT_RIGHT'],
+    help='A list of joint names for which the analysis will\
+    be performed. (default: %(default)s)')
+
+    args.add_argument('-crop_begin',nargs='?',\
+    type=float,\
+    default=10.,\
+    help='Amount of seconds to be cropped from the beginning of the file \
+    because, usually that area contains garbage (0 if no crop).')
+    
+    args.add_argument('-crop_end',nargs='?',\
+    type=float,\
+    default=10.,\
+    help='Amount of seconds to be cropped from the end of the file \
+    because, usually that area contains garbage (0 if no crop).')
+    
+    return args
+    
+################################ Main Entrance ################################
 def main():
-#    # read joint names and data file
-    #jointID = fio.readPointDic('Data/pointDef.dic')    
-    #dat,timeIndx,_ = readDataFile('Data/','.csv',joints=(\
-    # jointID['ELBOW_RIGHT'],jointID['WRIST_RIGHT']),preprocess=True)
-    #dat,boundDic = fio.readAllFiles('Data/','.csv',preprocess=True)
-    #sio.savemat('Data/jointInfo.mat',{'dat':dat})
+    # Argument Handler
+#    arg = buildArg()
+#    arg.parse_args()
+    
+    # read joint names and data file
+    jointID = fio.readPointDic('Data/pointDef.dic')   
+    X,boundDic = fio.readAllFiles_Concat('Data/','.csv',True,\
+    joints=[jointID['WRIST_RIGHT']],nSec = 10)
+#    # Load from MATLAB data file
 #    dat = sio.loadmat('Data/jointInfo.mat')['dat']
-#    
-#    #TODO: Delete this line. For debug only
-#    dat = dat[:500,:,:]
-#    
 
-#    # attempt to model only one joint for now    
-#    X = dat[:,:,jointID['WRIST_RIGHT']]
-
+    # Pad the data to make it appropriate size
+    numZeros = (nextpow2(len(X))-len(X))
+    X = np.concatenate((X[:,:,0],np.zeros((numZeros,np.size(X[:,:,0],\
+    axis=1)))),axis=0)    
+#======================================================
 #    # Toy Data
 #    # ========
 #    alpha,psi = fio.toyExample_small()
@@ -318,18 +353,20 @@ def main():
 #    alpha,psi = fio.toyExample_medium_boostHighFreq()
 #    alpha,psi = fio.toyExample_medium_1d()
 #    alpha,psi = fio.toyExample_medium_1d_multicomp()
-    alpha,psi = fio.toyExample_medium_3d_multicomp() 
+#    alpha,psi = fio.toyExample_medium_3d_multicomp() 
 #    alpha,psi = fio.toyExample_large_3d_multicomp()
-    X = recon(alpha,projectPsi(psi,1.0))
-    dispOriginal(alpha,psi)    
+#    X = recon(alpha,projectPsi(psi,1.0))
+#    dispOriginal(alpha,psi)
+#======================================================    
 
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
-    #(alpha_recon,psi_recon) = csc_pgd(alpha,psi,X,M=(len(psi)),D=2,beta=0.05)
-    (alpha_recon,psi_recon) = csc_pgd(X,M=64,D=2,beta=0.05)
+    (alpha_recon,psi_recon) = csc_pgd(X,M=64,D=16,beta=5,disp=True)
+
     # Display the reconstructed values
-    dispPlots(alpha_recon,psi_recon,X,'Final Data')
+    dispPlots(alpha_recon,psi_recon,X,'Final Result')
+    pp.pause(1)
     pp.show()
     
 if __name__ == '__main__':
