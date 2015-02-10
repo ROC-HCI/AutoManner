@@ -48,57 +48,57 @@ def readDataFile(readDataFile):
     temp[:,orientIdx],[header[L] for L in orientIdx],\
     temp[:,scnIdx],[header[L] for L in scnIdx]
     
-# We delete the first and last nSec * 30 frames because that is usually garbage
-def clean(dat,nSec = 10):
-    return dat[30*nSec:-30*nSec,:,:]
-# Normalization of the skeleton data. x,y,z components are individually
-# meansubtracted and divided by
-def normalizeDat(dat):    
-    datMean = np.mean(dat,axis=0)
-    dat = (dat - datMean)
-    datStd = np.max(np.std(dat,axis=0),axis=1)
-    for j in xrange(np.size(dat,axis=1)):
-        dat[:,j,:]/=datStd[j]
-    return dat
-# Reads all the skeleton tracking file in a folder and concatenates to 
-# to a single 3 dimensional array. First dimension is for frame number. 2nd and 
-# 3rd dimension is for jointID and (x,y,z) values respectively 
-# returns a tensor containing the data from all files
-# Applies some rudimentary preprocessing if preprocess is turned on
-def readAllFiles_Concat(fullFiles,suffix,preprocess,joints=(),nSec = 10):
-    if not joints:
-        m = 20
-    else:
-        m = len(joints)
-    allData = np.zeros((1,m,3))
-    boundDic = {}
-    bound = (-1,-1)
-    for root,folder,files in os.walk(fullFiles):
-        for afile in files:
-            if afile.lower().endswith(suffix.lower()):
-                # create full filename and print
-                fullPath = os.path.join(root,afile)
-                print fullPath
-                # Read file. 
-                dat,_,_ = readDataFile(fullPath,joints)
-                # Preprocess
-                if preprocess:
-                    dat = normalizeDat(clean(dat,nSec))
-                # Keep a record of where each file starts and ends 
-                bound = (bound[1]+1,bound[1]+np.size(dat,axis=0))
-                boundDic[bound] = fullPath
-                # Concatenate all the data
-                allData = np.concatenate((allData,dat),axis=0)
-    allData=np.delete(allData,0,axis=0)
-    allData = np.transpose(allData,axes=[0,2,1])
-    return allData,boundDic
-# Given any row index and the doundary dictionary it returns from which
-# file the row is coming. Important to trace back for finding the frame in
-# the video
-def findWhichFile(rowIndx,boundDic):
-    rowNumber = np.where((np.array(boundDic.keys())[:,0]<rowIndx) & \
-    (np.array(boundDic.keys())[:,1]>rowIndx))[0][0]
-    return boundDic.values()[rowNumber]
+## We delete the first and last nSec * 30 frames because that is usually garbage
+#def clean(dat,nSec = 10):
+#    return dat[30*nSec:-30*nSec,:,:]
+## Normalization of the skeleton data. x,y,z components are individually
+## meansubtracted and divided by
+#def normalizeDat(dat):    
+#    datMean = np.mean(dat,axis=0)
+#    dat = (dat - datMean)
+#    datStd = np.max(np.std(dat,axis=0),axis=1)
+#    for j in xrange(np.size(dat,axis=1)):
+#        dat[:,j,:]/=datStd[j]
+#    return dat
+## Reads all the skeleton tracking file in a folder and concatenates to 
+## to a single 3 dimensional array. First dimension is for frame number. 2nd and 
+## 3rd dimension is for jointID and (x,y,z) values respectively 
+## returns a tensor containing the data from all files
+## Applies some rudimentary preprocessing if preprocess is turned on
+#def readAllFiles_Concat(fullFiles,suffix,preprocess,joints=(),nSec = 10):
+#    if not joints:
+#        m = 20
+#    else:
+#        m = len(joints)
+#    allData = np.zeros((1,m,3))
+#    boundDic = {}
+#    bound = (-1,-1)
+#    for root,folder,files in os.walk(fullFiles):
+#        for afile in files:
+#            if afile.lower().endswith(suffix.lower()):
+#                # create full filename and print
+#                fullPath = os.path.join(root,afile)
+#                print fullPath
+#                # Read file. 
+#                dat,_,_ = readDataFile(fullPath,joints)
+#                # Preprocess
+#                if preprocess:
+#                    dat = normalizeDat(clean(dat,nSec))
+#                # Keep a record of where each file starts and ends 
+#                bound = (bound[1]+1,bound[1]+np.size(dat,axis=0))
+#                boundDic[bound] = fullPath
+#                # Concatenate all the data
+#                allData = np.concatenate((allData,dat),axis=0)
+#    allData=np.delete(allData,0,axis=0)
+#    allData = np.transpose(allData,axes=[0,2,1])
+#    return allData,boundDic
+## Given any row index and the doundary dictionary it returns from which
+## file the row is coming. Important to trace back for finding the frame in
+## the video
+#def findWhichFile(rowIndx,boundDic):
+#    rowNumber = np.where((np.array(boundDic.keys())[:,0]<rowIndx) & \
+#    (np.array(boundDic.keys())[:,1]>rowIndx))[0][0]
+#    return boundDic.values()[rowNumber]
 # Generate and return a toy data
 def toyExample_small():
     alpha = np.zeros((16,1))
