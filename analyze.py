@@ -15,6 +15,7 @@ import scipy.io as sio
 import fileio as fio
 import matplotlib.pyplot as pp
 import math as M
+import time
 
 ############################## Helper Functions ###############################
 # Display the gradients
@@ -56,7 +57,7 @@ def dispPlots(alpha,psi,X,figureName):
         pp.plot(psi[:,:,d])
         pp.title('psi')
         pp.subplot(515)
-        pp.plot(alpha[:,d])
+        pp.stem(alpha[:,d])
         pp.title('alpha')     
         pp.draw()
         pp.pause(0.3)
@@ -204,8 +205,8 @@ def calcGrad_psi(alpha,psi,X):
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-#def csc_pgd(alpha_orig,psi_orig,X,M,D,beta,iter_thresh=65500,thresh = 1e-5):
-def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
+def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
+		dispGrad=False,dispIteration=False):
     iter = 0
     N,K = np.shape(X)
     # M and N must be nonzero and power of two
@@ -227,7 +228,8 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
         grpsi = calcGrad_psi(alpha,psi,X)
         while True:        
             newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi)<calcP(X,alpha,newPsi):
+            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi)<calcP(X,\
+                                                            alpha,newPsi):
                 gamma_psi *= factor
             else:
                 break
@@ -250,7 +252,8 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
                 break
             if gamma_alpha<1e-15:
                 gamma_alpha = 0
-                newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
+                newAlpha = shrink(alpha - gamma_alpha*gralpha,\
+                                                            gamma_alpha*beta)
                 break
         print 'Gamma_alpha = ', '{:.4e}'.format(gamma_alpha),' ',
         alpha = newAlpha.copy()
@@ -259,15 +262,18 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
         # Debug and Display        
         likeli = loglike(X,alpha,psi,beta)
         valP = calcP(X,alpha,psi)
-        if disp:
-            # Display alpha, psi, X and L
-            dispPlots(alpha,psi,X,'Iteration Data')
+        
+        if dispGrad: 
             # Display Gradiants
             dispGrads(gralpha,grpsi)
-            # Display Log Likelihood
+        if dispIteration:
+            # Display alpha, psi, X and L
+            dispPlots(alpha,psi,X,'Iteration Data')
+        if dispObj:
+	    # Display Log Likelihood
             pp.figure('Log likelihood plot')
             pp.scatter(iter,likeli,c = 'b')
-            pp.title('Likelihood Plot for Beta = ' + '{:0.2f}'.format(beta))
+            pp.title('Likelihood Plot for Beta = ' + '{:f}'.format(beta))
             pp.draw()
             pp.pause(1)
         # Print status. Sparsity ratio is the percentage of error coming from
@@ -298,76 +304,156 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,disp=False):
 ################################# Main Helper #################################
 def buildArg():
     args = ArgumentParser(description="Automatic Extraction of Human Behavior")
-    args.add_argument('-f',nargs='+',\
-    help='A csv filename for learning the behavioral patterns \
-    or provide a foldername containing a number of csv files. The name of the\
-    folder must finish with a slash. Filename must finish with .csv',\
-    required=True)
+
+    args.add_argument('-i',nargs='?',default='Data/all_skeletal_Data.mat',\
+    metavar='INPUT_MAT_FILENAME',\
+    help='A mat file containing all the data concatenated into matrix. \
+    (default: %(default)s)')
+    
+    args.add_argument('-o',nargs='?',default='Results/result_',\
+    metavar='OUTPUT_FILE_PATH_AND_PREFIX',\
+    help='Path and any prefix of the generated output mat files. \
+    (default: %(default)s)')
+
+    args.add_argument('-toy',nargs='?',type=int,\
+    choices=range(1,8),metavar='TOY_DATA_ID',\
+    help='This will override the INPUT_MAT_FILENAME with synthetic toy data.\
+    The ID refers different preset synthetic data. \
+    Must be chosen from the following: %(choices)s')    
+    
+    args.add_argument('-skelTree',nargs='?',default=\
+    'Data/KinectSkeleton.tree',metavar='SKELETON_TREE_FILENAME',\
+    help='A .tree file containing kinect skeleton tree (default: %(default)s)')
 
     args.add_argument('-j',nargs='*',\
-    default='WRIST_RIGHT',\
+    default=['SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT'],\
     choices=['HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
     'SHOULDER_LEFT','ELBOW_LEFT','WRIST_LEFT','HAND_LEFT',\
     'SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT',\
     'HIP_LEFT','KNEE_LEFT','ANKLE_LEFT','FOOT_LEFT','HIP_RIGHT',\
-    'KNEE_RIGHT','ANKLE_RIGHT','FOOT_RIGHT'],
+    'KNEE_RIGHT','ANKLE_RIGHT','FOOT_RIGHT'],\
+    metavar='JOINTS_TO_CONSIDER',\
     help='A list of joint names for which the analysis will\
-    be performed. (default: %(default)s)')
-
-    args.add_argument('-crop_begin',nargs='?',\
-    type=float,\
-    default=10.,\
-    help='Amount of seconds to be cropped from the beginning of the file \
-    because, usually that area contains garbage (0 if no crop).')
+    be performed. (default: %(default)s). Must be chosen from the following:\
+    %(choices)s',required=False)
     
-    args.add_argument('-crop_end',nargs='?',\
-    type=float,\
-    default=10.,\
-    help='Amount of seconds to be cropped from the end of the file \
-    because, usually that area contains garbage (0 if no crop).')
+    args.add_argument('-M',nargs='?',type=int,default=128,\
+    metavar='ATOM_LENGTH',\
+    help='The length of atomic units (psi). IOW, the size of each \
+    element of the dictionary (default: %(default)s)')
     
+    args.add_argument('-D',nargs='?',type=int,default=16,\
+    metavar='DICTIONARY_LENGTH',\
+    help='The total number of atomic units (psi). In Other Words, the total\
+    number of elements in the dictionary')
+    
+    args.add_argument('-Beta',nargs='?',type=float,default=0.05,\
+    metavar='NON-SPARSITY_COST',\
+    help='Represents the cost of nonsparsity. The higer the cost, the \
+    sparser the occurances of the dictionary elements.')
+    
+    args.add_argument('--Disp',dest='Disp', action='store_true',\
+    default=False,help='Turns on the optimization displays. Shows Original\
+    Data + Final Results. Slows down the algorithm.')
+        
+    args.add_argument('--DispObj',dest='Disp_Obj', action='store_true',\
+    default=False,help='Turns on log of objective function plot. Hugely slows\
+    down the algorithm.')
+    
+    args.add_argument('--DispGrad',dest='Disp_Gradiants', action='store_true',\
+    default=False,help='Turns on the gradient plots. Mainly used for\
+    debuging. Hugely slows down the algorithm.')
+    
+    args.add_argument('--DispIter',dest='Disp_Iterations',action='store_true',\
+    default=False,help='Turns on the plots in each iteration. Mainly used for\
+    debuging. Hugely slows down the algorithm.')
     return args
+################################## Unit Test ##################################
+def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,\
+                            dispObj=False,dispGrad=False,dispIteration=False):
+    #======================================================
+#   Synthetic Toy Data
+    if dataID==1:
+        D=1
+        alpha,psi = fio.toyExample_medium()
+    elif dataID==2:
+        D=1
+        alpha,psi = fio.toyExample_medium_boostHighFreq()
+    elif dataID==3:
+        D=1
+        alpha,psi = fio.toyExample_medium_boostHighFreq()
+    elif dataID==4:
+        D=1
+        alpha,psi = fio.toyExample_medium_1d()
+    elif dataID==5:
+        alpha,psi = fio.toyExample_medium_1d_multicomp()
+    elif dataID==6:
+        alpha,psi = fio.toyExample_medium_3d_multicomp() 
+    elif dataID==7:
+        alpha,psi = fio.toyExample_large_3d_multicomp()
     
-################################ Main Entrance ################################
-def main():
-    # Argument Handler
-#    arg = buildArg()
-#    arg.parse_args()
+    # Construct the data            
+    X = recon(alpha,projectPsi(psi,1.0))
+    # Display Original Data if allowed
+    if disp:
+        dispOriginal(alpha,psi)
     
-    # read joint names and data file
-    jointID = fio.readPointDic('Data/pointDef.dic')   
-    X,boundDic = fio.readAllFiles_Concat('Data/','.csv',True,\
-    joints=[jointID['WRIST_RIGHT']],nSec = 10)
-#    # Load from MATLAB data file
-#    dat = sio.loadmat('Data/jointInfo.mat')['dat']
-
-    # Pad the data to make it appropriate size
-    numZeros = (nextpow2(len(X))-len(X))
-    X = np.concatenate((X[:,:,0],np.zeros((numZeros,np.size(X[:,:,0],\
-    axis=1)))),axis=0)    
-#======================================================
-#    # Toy Data
-#    # ========
-#    alpha,psi = fio.toyExample_small()
-#    alpha,psi = fio.toyExample_medium()
-#    alpha,psi = fio.toyExample_medium_boostHighFreq()
-#    alpha,psi = fio.toyExample_medium_1d()
-#    alpha,psi = fio.toyExample_medium_1d_multicomp()
-#    alpha,psi = fio.toyExample_medium_3d_multicomp() 
-#    alpha,psi = fio.toyExample_large_3d_multicomp()
-#    X = recon(alpha,projectPsi(psi,1.0))
-#    dispOriginal(alpha,psi)
-#======================================================    
-
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
-    (alpha_recon,psi_recon) = csc_pgd(X,M=64,D=16,beta=5,disp=True)
+    (alpha_recon,psi_recon) = csc_pgd(X,M,D,beta,dispObj=dispObj,\
+                    dispGrad=dispGrad,dispIteration=dispIteration)
 
     # Display the reconstructed values
-    dispPlots(alpha_recon,psi_recon,X,'Final Result')
-    pp.pause(1)
-    pp.show()
+    if disp:
+        print '### Parameters ###'
+        print 'N = ', str(len(X))
+        print 'M = ', str(M)
+        print 'D = ', str(D)
+        print 'beta = ', str(beta)
+        dispPlots(alpha_recon,psi_recon,X,'Final Result')
+        pp.pause(1)
+        pp.show()
+        
+    
+    return alpha_recon,psi_recon
+    
+################################ Main Entrance ################################
+def main():
+    # Handle arguments
+    parser = buildArg()
+    args = parser.parse_args()    
+    if not args.toy == None:
+        alpha_recon,psi_recon = toyTest(args.toy,D=2,M=64,beta=args.Beta,\
+            disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
+            dispIteration=args.Disp_Iterations)
+        return
+
+#    # Load from input data file
+    allData = sio.loadmat(args.i)
+
+    # Read joints and bones
+    joints,bones = fio.readSkeletalTree(args.skelTree)
+    jointList = [joints[jName] for jName in args.j]
+    X = fio.getJointData(allData['data'],jointList)
+    
+    # Pad the data to make it appropriate size
+    numZeros = (nextpow2(len(X))-len(X))
+    X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
+    
+    # Apply Convolutional Sparse Coding. 
+    # Length of AEB is set to 2 seconds (60 frames)    
+    # D represents how many Action Units we want to capture
+    # beta should be about 0.05 for 256 datapoints
+    (alpha_recon,psi_recon) = csc_pgd(X,args.M,args.D,args.Beta,\
+            disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants)
+    resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
+        str(args.Beta)+'_'+'_'.join(args.j)+'_'+str(round(time.time()*1000))
+    sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
+    'psi_recon':psi_recon})
+    print    
+    print 'Done!'
+    
     
 if __name__ == '__main__':
     main()
