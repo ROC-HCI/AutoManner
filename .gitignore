@@ -4,5 +4,7 @@ Data/*.csv
 Data/*.mat
 Data/Data_Collector/
 *.pyc
-.dropbox
+.dropbox*
 desktop.ini
+.nfs00000000000f464a0000013e
+*.csv_test
