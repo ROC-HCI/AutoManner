@@ -276,12 +276,17 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
 ############################## End File IO ####################################
 def unitTest1():
     joints,bones = readSkeletalTree('Data/KinectSkeleton.tree')
+    # Read all the files and split
     csvDat,boundDic,header = readAllFiles_Concat('Data/','.csv')
     data,dataHead = splitDataFile(csvDat,header)[:2]
-    sio.matlab.savemat('Data/all_skeletal_Data.mat',{'csvDat':csvDat,\
+    # Save the data in matlab format
+    sio.matlab.savemat('Data/top5_skeletal_Data.mat',{'csvDat':csvDat,\
     'header':header,'data':data,'dataHead':dataHead})
-    sio.matlab.savemat('Data/all_skeletal_Data_bound.mat',boundDic)
+    sio.matlab.savemat('Data/top5_skeletal_Data_bound.mat',boundDic)
     print 'Data Saved'
+    #Animate data
+    gui = sp.plotskeleton(data,dataHead,bones,skipframes=5)
+    gui.show()
 def unitTest2():
     allData = sio.loadmat('Data/all_skeletal_Data.mat')
     joints,_ = readSkeletalTree('Data/KinectSkeleton.tree')

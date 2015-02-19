@@ -82,13 +82,13 @@ def nextpow2(i):
     return int(M.pow(2, buf))        
 ######################### Algorithm Control Functions #########################     
 # Model functions
-def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma):
+def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha):
     return calcP(X,alpha_k,psi) + \
-    np.sum(calcGrad_alpha(alpha_k,psi,X)*(alpha - alpha_k)) + \
+    np.sum(gradAlpha*(alpha - alpha_k)) + \
     0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
-def modelfunc_psi(alpha,psi_k,psi,X,Gamma):
+def modelfunc_psi(alpha,psi_k,psi,X,Gamma,gradPsi):
     return calcP(X,alpha,psi_k) + \
-    np.sum(calcGrad_psi(alpha,psi_k,X)*(psi - psi_k)) + \
+    np.sum(gradPsi*(psi - psi_k)) + \
     0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
 ################### Functions for calculating objectives ######################
 # Mean squared error part of the objective function
@@ -228,12 +228,12 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         print str(iter),
         # Update psi and alpha with line search        
         # Update psi
-        gamma_psi = 16.0
+        gamma_psi = 1.0
         # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X)
         while True:        
             newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi)<calcP(X,\
+            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi,grpsi)<calcP(X,\
                                                             alpha,newPsi):
                 gamma_psi *= factor
             else:
@@ -245,13 +245,13 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         print 'LR_p/a','{:.1e}'.format(gamma_psi),'/',
         psi = newPsi.copy()
 #        # Update Alpha        
-        gamma_alpha = 16.0
+        gamma_alpha = 1.0
         # Calculate gradient of P with respect to alpha
         gralpha = calcGrad_alpha(alpha,psi,X)
         # Apply accelerated
         while True:
             newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
-            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha)<\
+            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha)<\
             calcP(X,newAlpha,psi):
                 gamma_alpha *= factor
             else:
@@ -312,6 +312,7 @@ def buildArg():
     args.add_argument('-i',nargs='?',default='Data/all_skeletal_Data.mat',\
     metavar='INPUT_MAT_FILENAME',\
     help='A mat file containing all the data concatenated into matrix. \
+    or a list of csv files from where the data has to be read\
     (default: %(default)s)')
     
     args.add_argument('-o',nargs='?',default='Results/result',\
@@ -330,8 +331,8 @@ def buildArg():
     help='A .tree file containing kinect skeleton tree (default: %(default)s)')
 
     args.add_argument('-j',nargs='*',\
-    default=['SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT'],\
-    choices=['NONE','HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
+    default=['ALL'],\
+    choices=['NONE','ALL','HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
     'SHOULDER_LEFT','ELBOW_LEFT','WRIST_LEFT','HAND_LEFT',\
     'SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT',\
     'HIP_LEFT','KNEE_LEFT','ANKLE_LEFT','FOOT_LEFT','HIP_RIGHT',\
@@ -454,6 +455,8 @@ def main():
     # Read joints and bones
     if 'NONE' in args.j:
         X = allData['data']
+    elif 'ALL' in args.j:
+        X = fio.getJointData(allData['data'],range(20))
     else:
         joints,bones = fio.readSkeletalTree(args.skelTree)
         jointList = [joints[jName] for jName in args.j]

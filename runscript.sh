@@ -1,10 +1,12 @@
-array=(3e-6 8e-6 3e-5 8e-5 3e-4 8e-4 3e-3 8e-3 3e-2 8e-2 3e-1 8e-1 3 8)
-
-printf "%f\n" "${array[@]}"
-
-for i in "${array[@]}"
-do
-python ./analyze.py -i Data/toy_Data.mat -j NONE -Beta ${i} -D 2
-done
-
-
+#!/bin/bash
+#SBATCH --array=0-11
+#SBATCH -t 24:59:59 
+#SBATCH -n 1
+#SBATCH -c 1
+#SBATCH -J BActionP
+#SBATCH -e Results/righthand_noninvariant/BActionP%A_%a.err
+#SBATCH -o Results/righthand_noninvariant/BActionP%A_%a.out
+#module load anaconda
+#array=(3e-11 8e-11 3e-10 8e-10 3e-9 8e-9 7e-8 6e-8 1e-7 5e-7 1e-8 5e-8)
+#echo ${array[${SLURM_ARRAY_TASK_ID}]}
+python ./analyze.py -i Data/top5_skeletal_Data.mat -j ALL -o Results/righthand_noninvariant/result -Beta 1e-7 -D 8 -M 128 
