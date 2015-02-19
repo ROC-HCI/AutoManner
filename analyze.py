@@ -209,6 +209,11 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
 		dispGrad=False,dispIteration=False):
     iter = 0
     N,K = np.shape(X)
+    # Scaling of Beta: The nonsparsity cost beta should be linear to the 
+    # total number of scalars involved in the objective function (N*K)
+    # Therefore, a scaling of beta is necessary to resist tuning beta for
+    # every different sample size
+    beta = beta*N*K
     # M and N must be nonzero and power of two
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
     psi,alpha = csc_init(M,N,K,D)   # Random initialization
@@ -220,7 +225,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
     countZero = 0
     # Main optimization loop
     while iter < iter_thresh:
-        print 'iter = ', iter,
+        print str(iter),
         # Update psi and alpha with line search        
         # Update psi
         gamma_psi = 16.0
@@ -237,12 +242,13 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
                 gamma_psi = 0
                 newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
                 break
-        print ' Gamma_psi = ', '{:.4e}'.format(gamma_psi), ' ',
+        print 'LR_p/a','{:.1e}'.format(gamma_psi),'/',
         psi = newPsi.copy()
 #        # Update Alpha        
         gamma_alpha = 16.0
         # Calculate gradient of P with respect to alpha
         gralpha = calcGrad_alpha(alpha,psi,X)
+        # Apply accelerated
         while True:
             newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
             if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha)<\
@@ -255,13 +261,13 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
                 newAlpha = shrink(alpha - gamma_alpha*gralpha,\
                                                             gamma_alpha*beta)
                 break
-        print 'Gamma_alpha = ', '{:.4e}'.format(gamma_alpha),' ',
+        print '{:.2e}'.format(gamma_alpha),
         alpha = newAlpha.copy()
         # Count the iteration
         iter += 1
         # Debug and Display        
         likeli = loglike(X,alpha,psi,beta)
-        valP = calcP(X,alpha,psi)
+        #valP = calcP(X,alpha,psi)
         
         if dispGrad: 
             # Display Gradiants
@@ -269,25 +275,21 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         if dispIteration:
             # Display alpha, psi, X and L
             dispPlots(alpha,psi,X,'Iteration Data')
+        # Display Log Objective
         if dispObj:
-	    # Display Log Likelihood
             pp.figure('Log likelihood plot')
             pp.scatter(iter,likeli,c = 'b')
             pp.title('Likelihood Plot for Beta = ' + '{:f}'.format(beta))
             pp.draw()
             pp.pause(1)
-        # Print status. Sparsity ratio is the percentage of error coming from
-        # sparsity
+        # Print iteration status.
         delta = prevlikeli - likeli
         maxDeltaLikeli = max(maxDeltaLikeli,abs(delta))
-        print ' Sparsity Ratio = ', \
-            '{:.2e}%'.format((np.exp(likeli) - valP)/np.exp(likeli)*100),\
-            ' likeli = ', '{:.2f}'.format(likeli), \
-            ' delta = ', '{:.2e}'.format(delta),
-        if maxDeltaLikeli!=0.0:
-            print '({:.2f}%)'.format((prevlikeli - likeli)/maxDeltaLikeli*100)
-        else:
-            print        
+        print 'N',str(N),'K',str(K),'M',str(M),'D',str(D),'Beta',\
+        str(beta/N/K)+'('+str(beta)+')',\
+            'logObj','{:.2f}'.format(likeli), \
+            'delta','{:.2e}'.format(delta)
+                
         # terminate loop
         allowZero_number = 8
         if (delta<thresh) or np.isnan(delta):
@@ -299,8 +301,10 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
             print countZero
         else:
             countZero = 0
-            prevlikeli = likeli        
-    return alpha,psi
+            prevlikeli = likeli
+    reconError = calcP(X,alpha,psi)
+    L0 = np.count_nonzero(alpha)
+    return alpha,psi,likeli,reconError,L0
 ################################# Main Helper #################################
 def buildArg():
     args = ArgumentParser(description="Automatic Extraction of Human Behavior")
@@ -310,7 +314,7 @@ def buildArg():
     help='A mat file containing all the data concatenated into matrix. \
     (default: %(default)s)')
     
-    args.add_argument('-o',nargs='?',default='Results/result_',\
+    args.add_argument('-o',nargs='?',default='Results/result',\
     metavar='OUTPUT_FILE_PATH_AND_PREFIX',\
     help='Path and any prefix of the generated output mat files. \
     (default: %(default)s)')
@@ -327,34 +331,47 @@ def buildArg():
 
     args.add_argument('-j',nargs='*',\
     default=['SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT'],\
-    choices=['HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
+    choices=['NONE','HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
     'SHOULDER_LEFT','ELBOW_LEFT','WRIST_LEFT','HAND_LEFT',\
     'SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT',\
     'HIP_LEFT','KNEE_LEFT','ANKLE_LEFT','FOOT_LEFT','HIP_RIGHT',\
     'KNEE_RIGHT','ANKLE_RIGHT','FOOT_RIGHT'],\
     metavar='JOINTS_TO_CONSIDER',\
     help='A list of joint names for which the analysis will\
-    be performed. (default: %(default)s). Must be chosen from the following:\
+    be performed. If NONE is selected, then joint selection will not be\
+    performed; all the columns in the data variable from the mat file will\
+    directly put to the optimizer. Note: joint selection is not applicable\
+    for toy data. (default: %(default)s). Must be chosen from the following:\
     %(choices)s',required=False)
+
+    args.add_argument('-iter_thresh',nargs='?',type=int,default=65536,\
+    metavar='ITERATION_THRESHOLD',\
+    help='Threshold of iteration (termination criteria) (default:%(default)s)')
     
-    args.add_argument('-M',nargs='?',type=int,default=128,\
+    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-5,\
+    metavar='DIFFERENCE_THRESHOLD',\
+    help='Threshold of difference in log objective function\
+    (termination criteria) (default:%(default)s)')
+    
+    args.add_argument('-M',nargs='?',type=int,default=64,\
     metavar='ATOM_LENGTH',\
     help='The length of atomic units (psi). IOW, the size of each \
-    element of the dictionary (default: %(default)s)')
+    element of the dictionary. Must be a power of 2. (default: %(default)s)')
     
     args.add_argument('-D',nargs='?',type=int,default=16,\
     metavar='DICTIONARY_LENGTH',\
     help='The total number of atomic units (psi). In Other Words, the total\
-    number of elements in the dictionary')
+    number of elements in the dictionary (default: %(default)s)')
     
-    args.add_argument('-Beta',nargs='?',type=float,default=0.05,\
+    args.add_argument('-Beta',nargs='?',type=float,default=3e-5,\
     metavar='NON-SPARSITY_COST',\
     help='Represents the cost of nonsparsity. The higer the cost, the \
     sparser the occurances of the dictionary elements.')
     
     args.add_argument('--Disp',dest='Disp', action='store_true',\
-    default=False,help='Turns on the optimization displays. Shows Original\
-    Data + Final Results. Slows down the algorithm.')
+    default=False,help='Turns on displays relevant for Toy data.\
+    Shows Original Data + Final Results. It is not applicable for data input\
+    from mat. Does not slow down much.')
         
     args.add_argument('--DispObj',dest='Disp_Obj', action='store_true',\
     default=False,help='Turns on log of objective function plot. Hugely slows\
@@ -401,16 +418,18 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,\
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
-    (alpha_recon,psi_recon) = csc_pgd(X,M,D,beta,dispObj=dispObj,\
-                    dispGrad=dispGrad,dispIteration=dispIteration)
+    alpha_recon,psi_recon = csc_pgd(X,M,D,beta,dispObj=dispObj,\
+                    dispGrad=dispGrad,dispIteration=dispIteration)[:2]
 
     # Display the reconstructed values
     if disp:
         print '### Parameters ###'
         print 'N = ', str(len(X))
+        print 'K = ', str(np.size(X,axis=1))
         print 'M = ', str(M)
         print 'D = ', str(D)
-        print 'beta = ', str(beta)
+        print 'beta = ', str(beta),'(beta*N*K = ',\
+                    str(beta*len(X)*np.size(X,axis=1)),')'
         dispPlots(alpha_recon,psi_recon,X,'Final Result')
         pp.pause(1)
         pp.show()
@@ -433,9 +452,12 @@ def main():
     allData = sio.loadmat(args.i)
 
     # Read joints and bones
-    joints,bones = fio.readSkeletalTree(args.skelTree)
-    jointList = [joints[jName] for jName in args.j]
-    X = fio.getJointData(allData['data'],jointList)
+    if 'NONE' in args.j:
+        X = allData['data']
+    else:
+        joints,bones = fio.readSkeletalTree(args.skelTree)
+        jointList = [joints[jName] for jName in args.j]
+        X = fio.getJointData(allData['data'],jointList)        
     
     # Pad the data to make it appropriate size
     numZeros = (nextpow2(len(X))-len(X))
@@ -445,12 +467,16 @@ def main():
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
     # beta should be about 0.05 for 256 datapoints
-    (alpha_recon,psi_recon) = csc_pgd(X,args.M,args.D,args.Beta,\
-            disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants)
+    alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
+    D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
+    thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
+    dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations)
+    # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
         str(args.Beta)+'_'+'_'.join(args.j)+'_'+str(round(time.time()*1000))
     sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
-    'psi_recon':psi_recon})
+    'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
+    'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j})
     print    
     print 'Done!'
     

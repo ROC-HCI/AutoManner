@@ -262,8 +262,8 @@ def toyExample_medium_3d_multicomp():
 # Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
-    alpha[np.random.rand(N)>0.9975,0]=1.0
-    alpha[np.random.rand(N)>0.9975,1]=1.0
+    alpha[np.random.rand(N)>0.95,0]=1.0
+    alpha[np.random.rand(N)>0.95,1]=1.0
     xVal = np.linspace(-1,1,M)*np.pi
     psi = np.zeros((len(xVal),3,2))
     psi[:,0,0] = np.sin(xVal)
