@@ -8,4 +8,4 @@ Data/Data_Collector/
 desktop.ini
 .nfs00000000000f464a0000013e
 *.csv_test
-runscript.sh
+./runscript.sh
