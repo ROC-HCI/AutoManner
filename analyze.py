@@ -225,6 +225,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
     countZero = 0
     # Main optimization loop
     while iter < iter_thresh:
+        itStartTime = time.time()
         print str(iter),
         # Update psi and alpha with line search        
         # Update psi
@@ -288,7 +289,8 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         print 'N',str(N),'K',str(K),'M',str(M),'D',str(D),'Beta',\
         str(beta/N/K)+'('+str(beta)+')',\
             'logObj','{:.2f}'.format(likeli), \
-            'delta','{:.2e}'.format(delta)
+            'delta','{:.2e}'.format(delta),\
+            'iterTime',time.time() - itStartTime
                 
         # terminate loop
         allowZero_number = 8
