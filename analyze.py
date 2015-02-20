@@ -181,7 +181,7 @@ def calcGrad_alpha(alpha,psi,X):
             gradP_alpha[:,d,k] = \
             sg.fftconvolve(lxDiff[:,k],\
             psi[::-1,k,d],'full')[(M+N)/2-N/2:(M+N)/2+N/2]
-    gradP_alpha = np.sum(gradP_alpha,axis=2)  # Should we really avg?
+    gradP_alpha = np.sum(gradP_alpha,axis=2)
     return gradP_alpha
 # Manually Checked with sample data -- Working as indended
 # Grad of P wrt psi is sum((X(t)-L(t))alpha(t-t'))

@@ -13,7 +13,6 @@ import numpy as np
 import os
 import skeletonPlotter as sp
 import scipy.io as sio
-
 # TODO: change arguments to all lower case
 #################################### FILE IO ##################################
 # Note: 
@@ -80,15 +79,43 @@ def splitDataFile(csvData,header):
     screenxy_header = [header[L] for L in scnIdx]
     return data,data_header,orient,orient_header,screenxy,screenxy_header
 
+def rotateByXYZ(data,thetaX,thetaY,thetaZ):
+    
+    data[:,2::3] = data[:,2::3]*np.cos(thetaY)*np.cos(thetaZ)\
+    +data[:,3::3]*(-1*np.cos(thetaX)*np.sin(thetaZ)+np.sin(thetaX)*np.sin(thetaY)*np.cos(thetaZ))\
+    +data[:,4::3]*(np.sin(thetaX)*np.sin(thetaZ)+np.cos(thetaX)*np.sin(thetaY)*np.cos(thetaZ))
+    
+    data[:,3::3] = data[:,2::3]*(np.cos(thetaY)*np.sin(thetaZ))\
+    +data[:,3::3]*(np.cos(thetaX)*np.cos(thetaZ)+np.sin(thetaX)*np.sin(thetaY)*np.sin(thetaZ))\
+    +data[:,4::3]*(-1*np.sin(thetaX)*np.cos(thetaZ)+np.cos(thetaX)*np.sin(thetaY)*np.sin(thetaZ))
+    
+    data[:,4::3] = -1*data[:,2::3]*np.sin(thetaY)\
+    +data[:,3::3]*np.sin(thetaX)*np.cos(thetaY)\
+    +data[:,4::3]*np.cos(thetaX)*np.cos(thetaY)
+    return data
+def quarternionToeuler(qx,qy,qz):
+    ex = np.arctan2(2*(qx+qy*qz),1-2*(qx**2.+qy**2.))
+    ey = np.arcsin(2*(qy-qz*qx))
+    ez = np.arctan2(2*(qz+qx*qy),1-2*(qy**2.+qz**2.))
+    return ex,ey,ez
 # TODO: Rotational and scale invariance
 # Calculates invarient feature by translating the origin in the body
 # It assumes the data to be in the same format 
 # as given by the function readDataFile()
-def calcInvarient(csvData):
-    csvData[:,2::3]=csvData[:,2::3]-csvData[:,2][None].T.dot(np.ones((1,20)))
-    csvData[:,3::3]=csvData[:,3::3]-csvData[:,3][None].T.dot(np.ones((1,20)))
-    csvData[:,4::3]=csvData[:,4::3]-csvData[:,4][None].T.dot(np.ones((1,20)))
-    return csvData
+def calcInvarient(data,orient,refjoint=0):
+    data[:,2::3]=data[:,2::3]-data[:,2+refjoint*3][None].T.dot(np.ones((1,20)))
+    data[:,3::3]=data[:,3::3]-data[:,3+refjoint*3][None].T.dot(np.ones((1,20)))
+    data[:,4::3]=data[:,4::3]-data[:,4+refjoint*3][None].T.dot(np.ones((1,20)))
+    #Orientations in quertarnion
+    qx = orient[:,5+refjoint*8][None].T    
+    qy = orient[:,5+refjoint*8][None].T
+    qz = orient[:,5+refjoint*8][None].T
+    
+    # Convert to Euler rotation
+    eulerX,eulerY,eulerZ = quarternionToeuler(qx,qy,qz)
+    
+    data = rotateByXYZ(data,eulerX,eulerY,eulerZ)
+    return data
 
 # Delete the nSecBegin seconds from the begining and nSecEnds seconds from
 # the end because that is usually garbage. The actual crop positions
@@ -294,7 +321,14 @@ def unitTest2():
     joints['ELBOW_RIGHT'],joints['WRIST_RIGHT'],joints['HAND_RIGHT']))
     print np.shape(X)
     pass
+
+def unitTest3():
+    bones = readSkeletalTree('Data/KinectSkeleton.tree')[1]
+    dat,datHead,orient = splitDataFile(*readDataFile('Data/13.3.csv'))[:3]    
+    invdat=calcInvarient(dat,orient)
     
+    gui = sp.plotskeleton(invdat,datHead,bones,skipframes=0)
+    gui.show()
 
 if __name__ == '__main__':
-    unitTest1()
+    unitTest3()
