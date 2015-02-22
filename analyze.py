@@ -9,6 +9,9 @@
 -------------------------------------------------------------------------------
 '''
 from argparse import ArgumentParser
+from functools import partial
+from multiprocessing import Pool
+from itertools import izip
 import numpy as np
 import scipy.signal as sg
 import scipy.io as sio
@@ -35,7 +38,7 @@ def dispGrads(gralpha,grpsi):
         pp.draw()
         pp.pause(1)
 # Plots alpha, psi, original and reconstructed data
-def dispPlots(alpha,psi,X,figureName):
+def dispPlots(alpha,psi,X,figureName,p):
     _,D = np.shape(alpha)
     for d in xrange(D):
         pp.figure(figureName + ' for component # '+'{:0}'.format(d))
@@ -45,7 +48,7 @@ def dispPlots(alpha,psi,X,figureName):
         yrange = pp.ylim()        
         pp.title('Original Data')        
         pp.subplot(512)
-        L = recon(alpha,psi)
+        L = recon(alpha,psi,p)
         pp.plot(L)
         pp.ylim(yrange)
         pp.title('Reconstructed Data')    
@@ -82,26 +85,25 @@ def nextpow2(i):
     return int(M.pow(2, buf))        
 ######################### Algorithm Control Functions #########################     
 # Model functions
-def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha):
-    return calcP(X,alpha_k,psi) + \
+def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha,p):
+    return calcP(X,alpha_k,psi,p) + \
     np.sum(gradAlpha*(alpha - alpha_k)) + \
     0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
-def modelfunc_psi(alpha,psi_k,psi,X,Gamma,gradPsi):
-    return calcP(X,alpha,psi_k) + \
+def modelfunc_psi(alpha,psi_k,psi,X,Gamma,gradPsi,p):
+    return calcP(X,alpha,psi_k,p) + \
     np.sum(gradPsi*(psi - psi_k)) + \
     0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
 ################### Functions for calculating objectives ######################
 # Mean squared error part of the objective function
-def calcP(X,alpha,psi):
-    L = recon(alpha,psi)
-    return (0.5*np.sum((X-L)**2.))
+def calcP(X,alpha,psi,p):
+    L = recon(alpha,psi,p)
+    return 0.5*np.sum((X-L)**2.)
 # Actual value of the objective function
-def calcObjf(X,alpha,psi,beta):
-    L = recon(alpha,psi)
-    return (0.5*np.sum((X-L)**2.) + beta*np.sum(np.abs(alpha)))
+def calcObjf(X,alpha,psi,beta,p):
+    return calcP(X,alpha,psi,p)+beta*np.sum(np.abs(alpha))
 # Logarithm of the objective function
-def loglike(X,alpha,psi,beta):
-    return M.log(calcObjf(X,alpha,psi,beta))
+def loglike(X,alpha,psi,beta,p):
+    return M.log(calcObjf(X,alpha,psi,beta,p))
     #return (0.5*np.sum((X-L)**2.))
 ########################### Projection Functions ##############################
 #Normalize psi (Project onto unit circle)    
@@ -145,34 +147,36 @@ def csc_init(M,N,K,D):
 # psi is M x K x D (axis-1: x, y and z components of AEB)
 # psi represents all the AEBs (D number of them)
 # OUTPUT: returns an N x k x d tensor which is alpha*psi over axis-0
-def convAlphaPsi(alpha,psi):
+def myconvolve(in2,in1,mode):
+    return sg.fftconvolve(in1,in2,mode)
+def convAlphaPsi(alpha,psi,p):
     szAlpha = np.shape(alpha)
     szPsi = np.shape(psi)
     assert len(szAlpha) == 2 and len(szPsi) == 3 and szAlpha[1] == szPsi[2]
     convRes = np.zeros((szAlpha[0],szPsi[1],szAlpha[1]))
     for d in xrange(szAlpha[1]):
-        for k in xrange(szPsi[1]):
-            convRes[:,k,d] = sg.fftconvolve(alpha[:,d],psi[:,k,d],'same')
+        partconvolve = partial(myconvolve,in1=alpha[:,d],mode='same')
+        convRes[:,:,d] = np.array(p.map(partconvolve,psi[:,:,d].T,1)).T
     return convRes
 # Reconstruct the data from components
 # s is d x 1 tensor containing scalar loading for each alpha*psi
 # alpha is N x D, psi is M x K X D
 # OUTPUT: inner product of alpha*psi and s
-def recon(alpha,psi):
+def recon(alpha,psi,p):
     szAlpha = np.shape(alpha)
     szPsi = np.shape(psi)
     assert len(szAlpha) == 2 and len(szPsi) == 3 and szAlpha[1] == szPsi[2]
-    convRes = convAlphaPsi(alpha,psi)
+    convRes = convAlphaPsi(alpha,psi,p)
     return np.sum(convRes,axis=2)
 ####################### Exact calculation of Gradient #########################
 # Manually Checked with sample data -- Working as indended
 # Grad of P wrt alpha is sum((X(t)-L(t))psi(t-t'))
 # Returns an NxD tensor representing gradient of P with respect to psi
-def calcGrad_alpha(alpha,psi,X):
+def calcGrad_alpha(alpha,psi,X,p):
     N,D = np.shape(alpha)
     M,K,_ = np.shape(psi)
     gradP_alpha = np.zeros((N,D,K))
-    L = recon(alpha,psi)
+    L = recon(alpha,psi,p)
     lxDiff = L - X
     for d in xrange(D):
         for k in xrange(K):
@@ -186,11 +190,11 @@ def calcGrad_alpha(alpha,psi,X):
 # Manually Checked with sample data -- Working as indended
 # Grad of P wrt psi is sum((X(t)-L(t))alpha(t-t'))
 # Returns an MxKxD tensor representing gradient of P with respect to psi
-def calcGrad_psi(alpha,psi,X):
+def calcGrad_psi(alpha,psi,X,p):
     N,D = np.shape(alpha)
     M,K,_ = np.shape(psi)
     gradP_psi = np.zeros((M,K,D))
-    L = recon(alpha,psi)
+    L = recon(alpha,psi,p)
     lxDiff = L - X
     for d in xrange(D):    
         for k in xrange(K):
@@ -206,7 +210,7 @@ def calcGrad_psi(alpha,psi,X):
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
 def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
-		dispGrad=False,dispIteration=False):
+		dispGrad=False,dispIteration=False,totWorker=4):
     iter = 0
     N,K = np.shape(X)
     # Scaling of Beta: The nonsparsity cost beta should be linear to the 
@@ -216,11 +220,12 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
     beta = beta*N*K
     # M and N must be nonzero and power of two
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
+    workers = Pool(processes=totWorker)   # Assign workers
     psi,alpha = csc_init(M,N,K,D)   # Random initialization
     #psi = psi_orig                 # Setting the initial value to actual
     #alpha = alpha_orig + 0.01      # solution. Debug purpose only    
     factor = 0.5
-    prevlikeli = loglike(X,alpha,psi,beta)
+    prevlikeli = loglike(X,alpha,psi,beta,workers)
     maxDeltaLikeli = 0
     countZero = 0
     # Main optimization loop
@@ -231,11 +236,11 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         # Update psi
         gamma_psi = 1.0
         # Calculate gradient of P with respect to psi
-        grpsi = calcGrad_psi(alpha,psi,X)
-        while True:        
+        grpsi = calcGrad_psi(alpha,psi,X,workers)
+        while True:
             newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi,grpsi)<calcP(X,\
-                                                            alpha,newPsi):
+            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi,grpsi,workers)<\
+                                            calcP(X,alpha,newPsi,workers):
                 gamma_psi *= factor
             else:
                 break
@@ -248,12 +253,12 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
 #        # Update Alpha        
         gamma_alpha = 1.0
         # Calculate gradient of P with respect to alpha
-        gralpha = calcGrad_alpha(alpha,psi,X)
+        gralpha = calcGrad_alpha(alpha,psi,X,workers)
         # Apply accelerated
         while True:
             newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
-            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha)<\
-            calcP(X,newAlpha,psi):
+            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha,workers)<\
+            calcP(X,newAlpha,psi,workers):
                 gamma_alpha *= factor
             else:
                 break
@@ -267,7 +272,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         # Count the iteration
         iter += 1
         # Debug and Display        
-        likeli = loglike(X,alpha,psi,beta)
+        likeli = loglike(X,alpha,psi,beta,workers)
         #valP = calcP(X,alpha,psi)
         
         if dispGrad: 
@@ -275,7 +280,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
             dispGrads(gralpha,grpsi)
         if dispIteration:
             # Display alpha, psi, X and L
-            dispPlots(alpha,psi,X,'Iteration Data')
+            dispPlots(alpha,psi,X,'Iteration Data',workers)
         # Display Log Objective
         if dispObj:
             pp.figure('Log likelihood plot')
@@ -290,7 +295,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         str(beta/N/K)+'('+str(beta)+')',\
             'logObj','{:.2f}'.format(likeli), \
             'delta','{:.2e}'.format(delta),\
-            'iterTime',time.time() - itStartTime
+            'iterTime','{:.2e}'.format(time.time() - itStartTime)
                 
         # terminate loop
         allowZero_number = 8
@@ -304,7 +309,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         else:
             countZero = 0
             prevlikeli = likeli
-    reconError = calcP(X,alpha,psi)
+    reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)
     return alpha,psi,likeli,reconError,L0
 ################################# Main Helper #################################
@@ -320,6 +325,11 @@ def buildArg():
     args.add_argument('-o',nargs='?',default='Results/result',\
     metavar='OUTPUT_FILE_PATH_AND_PREFIX',\
     help='Path and any prefix of the generated output mat files. \
+    (default: %(default)s)')
+    
+    args.add_argument('-p',nargs='?',type=int,default=4,\
+    metavar='Num_Parallel',\
+    help='Total number of parallel processes to be used. \
     (default: %(default)s)')
 
     args.add_argument('-toy',nargs='?',type=int,\
@@ -389,8 +399,8 @@ def buildArg():
     debuging. Hugely slows down the algorithm.')
     return args
 ################################## Unit Test ##################################
-def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,\
-                            dispObj=False,dispGrad=False,dispIteration=False):
+def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
+                                            dispIteration=False,totWorker=4):
     #======================================================
 #   Synthetic Toy Data
     if dataID==1:
@@ -410,20 +420,18 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,\
     elif dataID==6:
         alpha,psi = fio.toyExample_medium_3d_multicomp() 
     elif dataID==7:
-        alpha,psi = fio.toyExample_large_3d_multicomp()
-    
+        alpha,psi = fio.toyExample_large_3d_multicomp()    
+    p = Pool(totWorker)
     # Construct the data            
-    X = recon(alpha,projectPsi(psi,1.0))
+    X = recon(alpha,projectPsi(psi,1.0),p)
     # Display Original Data if allowed
     if disp:
-        dispOriginal(alpha,psi)
-    
+        dispOriginal(alpha,psi)    
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
     alpha_recon,psi_recon = csc_pgd(X,M,D,beta,dispObj=dispObj,\
                     dispGrad=dispGrad,dispIteration=dispIteration)[:2]
-
     # Display the reconstructed values
     if disp:
         print '### Parameters ###'
@@ -433,13 +441,10 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,\
         print 'D = ', str(D)
         print 'beta = ', str(beta),'(beta*N*K = ',\
                     str(beta*len(X)*np.size(X,axis=1)),')'
-        dispPlots(alpha_recon,psi_recon,X,'Final Result')
+        dispPlots(alpha_recon,psi_recon,X,'Final Result',p)
         pp.pause(1)
         pp.show()
-        
-    
-    return alpha_recon,psi_recon
-    
+    return alpha_recon,psi_recon    
 ################################ Main Entrance ################################
 def main():
     # Handle arguments
@@ -448,12 +453,10 @@ def main():
     if not args.toy == None:
         alpha_recon,psi_recon = toyTest(args.toy,D=2,M=64,beta=args.Beta,\
             disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
-            dispIteration=args.Disp_Iterations)
+            dispIteration=args.Disp_Iterations,totWorker=args.p)
         return
-
 #    # Load from input data file
     allData = sio.loadmat(args.i)
-
     # Read joints and bones
     if 'NONE' in args.j:
         X = allData['data']
@@ -462,12 +465,10 @@ def main():
     else:
         joints,bones = fio.readSkeletalTree(args.skelTree)
         jointList = [joints[jName] for jName in args.j]
-        X = fio.getJointData(allData['data'],jointList)        
-    
+        X = fio.getJointData(allData['data'],jointList)    
     # Pad the data to make it appropriate size
     numZeros = (nextpow2(len(X))-len(X))
     X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
-    
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
@@ -475,7 +476,8 @@ def main():
     alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
     D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
-    dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations)
+    dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
+    totWorker=args.p)
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
         str(args.Beta)+'_'+'_'.join(args.j)+'_'+str(round(time.time()*1000))
@@ -483,8 +485,7 @@ def main():
     'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
     'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j})
     print    
-    print 'Done!'
-    
+    print 'Done!'    
     
 if __name__ == '__main__':
     main()
