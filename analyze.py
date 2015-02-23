@@ -147,7 +147,8 @@ def csc_init(M,N,K,D):
 # psi is M x K x D (axis-1: x, y and z components of AEB)
 # psi represents all the AEBs (D number of them)
 # OUTPUT: returns an N x k x d tensor which is alpha*psi over axis-0
-def myconvolve(in2,in1,mode):
+# Note: The method uses multiple processes for faster operation
+def __myconvolve(in2,in1,mode):
     return sg.fftconvolve(in1,in2,mode)
 def convAlphaPsi(alpha,psi,p):
     szAlpha = np.shape(alpha)
@@ -155,7 +156,7 @@ def convAlphaPsi(alpha,psi,p):
     assert len(szAlpha) == 2 and len(szPsi) == 3 and szAlpha[1] == szPsi[2]
     convRes = np.zeros((szAlpha[0],szPsi[1],szAlpha[1]))
     for d in xrange(szAlpha[1]):
-        partconvolve = partial(myconvolve,in1=alpha[:,d],mode='same')
+        partconvolve = partial(__myconvolve,in1=alpha[:,d],mode='same')
         convRes[:,:,d] = np.array(p.map(partconvolve,psi[:,:,d].T,1)).T
     return convRes
 # Reconstruct the data from components
@@ -172,36 +173,35 @@ def recon(alpha,psi,p):
 # Manually Checked with sample data -- Working as indended
 # Grad of P wrt alpha is sum((X(t)-L(t))psi(t-t'))
 # Returns an NxD tensor representing gradient of P with respect to psi
+# Note: The method uses multiple processes for faster operation
+def __myconvolve1(parArgs):
+    return sg.fftconvolve(parArgs[0],parArgs[1],'full')
 def calcGrad_alpha(alpha,psi,X,p):
     N,D = np.shape(alpha)
     M,K,_ = np.shape(psi)
     gradP_alpha = np.zeros((N,D,K))
     L = recon(alpha,psi,p)
-    lxDiff = L - X
+    lxDiff = (L-X).T
     for d in xrange(D):
-        for k in xrange(K):
-            # this is actually a correlation operation. Notice that 
-            # psi is actually flipped
-            gradP_alpha[:,d,k] = \
-            sg.fftconvolve(lxDiff[:,k],\
-            psi[::-1,k,d],'full')[(M+N)/2-N/2:(M+N)/2+N/2]
+        parArgs = izip(lxDiff,psi[::-1,:,d].T)
+        gradP_alpha[:,d,:] = np.array(p.map(__myconvolve1,parArgs,1))\
+        [:,(M+N)/2-N/2:(M+N)/2+N/2].T
     gradP_alpha = np.sum(gradP_alpha,axis=2)
     return gradP_alpha
 # Manually Checked with sample data -- Working as indended
 # Grad of P wrt psi is sum((X(t)-L(t))alpha(t-t'))
 # Returns an MxKxD tensor representing gradient of P with respect to psi
+# Note: The method uses multiple processes for faster operation    
 def calcGrad_psi(alpha,psi,X,p):
     N,D = np.shape(alpha)
     M,K,_ = np.shape(psi)
     gradP_psi = np.zeros((M,K,D))
     L = recon(alpha,psi,p)
-    lxDiff = L - X
-    for d in xrange(D):    
-        for k in xrange(K):
-            # this is actually a correlation operation. Notice that 
-            # alpha is flipped
-            gradP_psi[:,k,d] = sg.fftconvolve(lxDiff[:,k],alpha[::-1,d],\
-            'full')[(N-M/2):(N+M/2)] 
+    lxDiff = (L - X).T
+    for d in xrange(D):
+        partconvolve = partial(sg.fftconvolve,in2=alpha[::-1,d],mode='full')
+        gradP_psi[:,:,d] = np.array(p.map(partconvolve,lxDiff))\
+                                                        [:,(N-M/2):(N+M/2)].T
     return gradP_psi    
 ####################### Main Gradient Descent Procedure #######################
 # Applies Convolutional Sparse Coding with Proximal Gradient Descent Algorithm    
@@ -257,8 +257,8 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         # Apply accelerated
         while True:
             newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
-            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha,workers)<\
-            calcP(X,newAlpha,psi,workers):
+            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha,\
+            workers)<calcP(X,newAlpha,psi,workers):
                 gamma_alpha *= factor
             else:
                 break
@@ -300,7 +300,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         # terminate loop
         allowZero_number = 8
         if (delta<thresh) or np.isnan(delta):
-            if (delta<thresh or np.isnan(delta)) and countZero<allowZero_number:
+            if (delta<thresh or np.isnan(delta))and countZero<allowZero_number:
                 countZero += 1
             elif (delta < thresh or np.isnan(delta)) and \
             countZero>=allowZero_number:
