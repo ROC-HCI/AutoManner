@@ -1,48 +1,62 @@
+'''
+Module for display skeleton animation. There is a provision for plotting
+a selected number joint position over time.
+TODO: Plot bone orientation, global angles etc.
+TODO: Save a realtime movie out of the animation
+TODO: Save publishable image sequences out of the animation
+TODO: Deploy in internet
+-------------------------------------------------------------------------------
+    Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
+    Rochester Human-Computer Interaction (ROCHCI)
+    University of Rochester
+-------------------------------------------------------------------------------
+'''
 import numpy as np
 import matplotlib.pyplot as plt
 import fileio as fio
+import scipy.io as sio
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 
-# TODO: change arguments to all lower case
+# TODO: change arguments to all lower case. Camelcase is difficult to remember
 class plotskeleton(object):
-    #TODO
+    #TODO: redesign
     # Initialize the visualization class
-    def __init__(self,data,dataHeader,boneConnection,JointID1=1,\
-    JointID2=9,startEndTime=[],skipframes=0):
-        # startEndTime denotes the time (in millisec) from where the animation
+    def __init__(self,data,dataheader,boneconnection,jointid1=1,\
+    jointid2=9,startendtime=[],skipframes=0):
+        # startendtime denotes the time (in millisec) from where the animation
         # starts and finishes. bx (boundary index) contains the same
         #  information as vector indices.
-        if not startEndTime:
+        if not startendtime:
             self.bx = (0,len(data),1+skipframes)
         else:
-            assert startEndTime[0]<startEndTime[1]
-            self.bx = (np.argmax(data[:,1]>startEndTime[0]),\
-            np.argmax(data[:,1]>startEndTime[1]),1+skipframes)
+            assert startendtime[0]<startendtime[1]
+            self.bx = (np.argmax(data[:,1]>startendtime[0]),\
+            np.argmax(data[:,1]>startendtime[1]),1+skipframes)
         # Joints to display in the two plots. Make sure they are tuple or list
         # not scalar
-        if isinstance(JointID1,tuple) == False and \
-            isinstance(JointID1,list) == False:
-            self.jointID1 = (JointID1,)
+        if isinstance(jointid1,tuple) == False and \
+            isinstance(jointid1,list) == False:
+            self.jointid1 = (jointid1,)
         else:
-            self.jointID1 = JointID1
-        if isinstance(JointID2,tuple) == False and \
-            isinstance(JointID2,list) == False:
-            self.jointID2 = (JointID2,)
+            self.jointid1 = jointid1
+        if isinstance(jointid2,tuple) == False and \
+            isinstance(jointid2,list) == False:
+            self.jointid2 = (jointid2,)
         else:
-            self.jointID2 = JointID2
+            self.jointid2 = jointid2
         # x,y, z positions of all the 20 joints and corresponding names
         self.x = data[:,2::3]
-        self.xhead = dataHeader[2::3]
+        self.xhead = dataheader[2::3]
         self.y = data[:,3::3]
-        self.yhead = dataHeader[3::3]        
+        self.yhead = dataheader[3::3]        
         self.z = data[:,4::3]
-        self.zhead = dataHeader[4::3]
+        self.zhead = dataheader[4::3]
          # Timestamp in millisec
         self.timeStamp = data[:,1]
         # Connection of bones
-        self.boneStartIdx = boneConnection[:,0]   
-        self.boneEndIdx = boneConnection[:,1]
+        self.boneStartIdx = boneconnection[:,0]   
+        self.boneEndIdx = boneconnection[:,1]
         self.numBones = len(self.boneStartIdx)
         self.elev = 0
         self.azim = -90
@@ -73,24 +87,24 @@ class plotskeleton(object):
                     init_func=self.setup_plot, blit=True)
     # This function will prepare the data and legend strings for plotting
     def prepDatToPlot(self):
-        dat1 = np.zeros((self.bx[1]-self.bx[0],3*len(self.jointID1)))
-        leg1 = ['LegText']*(3*len(self.jointID1))
-        dat2 = np.zeros((self.bx[1]-self.bx[0],3*len(self.jointID2)))
-        leg2 = ['LegText']*(3*len(self.jointID2))
-        for idx in xrange(len(self.jointID1)):
-            dat1[:,3*idx]=self.x[self.bx[0]:self.bx[1],self.jointID1[idx]]
-            dat1[:,3*idx+1]=self.y[self.bx[0]:self.bx[1],self.jointID1[idx]]
-            dat1[:,3*idx+2]=self.z[self.bx[0]:self.bx[1],self.jointID1[idx]]
-            leg1[3*idx]=self.xhead[self.jointID1[idx]]
-            leg1[3*idx+1]=self.yhead[self.jointID1[idx]]
-            leg1[3*idx+2]=self.zhead[self.jointID1[idx]]
-        for idx in xrange(len(self.jointID2)):
-            dat2[:,3*idx]=self.x[self.bx[0]:self.bx[1],self.jointID2[idx]]
-            dat2[:,3*idx+1]=self.y[self.bx[0]:self.bx[1],self.jointID2[idx]]
-            dat2[:,3*idx+2]=self.z[self.bx[0]:self.bx[1],self.jointID2[idx]]
-            leg2[3*idx]=self.xhead[self.jointID2[idx]]
-            leg2[3*idx+1]=self.yhead[self.jointID2[idx]]
-            leg2[3*idx+2]=self.zhead[self.jointID2[idx]]
+        dat1 = np.zeros((self.bx[1]-self.bx[0],3*len(self.jointid1)))
+        leg1 = ['LegText']*(3*len(self.jointid1))
+        dat2 = np.zeros((self.bx[1]-self.bx[0],3*len(self.jointid2)))
+        leg2 = ['LegText']*(3*len(self.jointid2))
+        for idx in xrange(len(self.jointid1)):
+            dat1[:,3*idx]=self.x[self.bx[0]:self.bx[1],self.jointid1[idx]]
+            dat1[:,3*idx+1]=self.y[self.bx[0]:self.bx[1],self.jointid1[idx]]
+            dat1[:,3*idx+2]=self.z[self.bx[0]:self.bx[1],self.jointid1[idx]]
+            leg1[3*idx]=self.xhead[self.jointid1[idx]]
+            leg1[3*idx+1]=self.yhead[self.jointid1[idx]]
+            leg1[3*idx+2]=self.zhead[self.jointid1[idx]]
+        for idx in xrange(len(self.jointid2)):
+            dat2[:,3*idx]=self.x[self.bx[0]:self.bx[1],self.jointid2[idx]]
+            dat2[:,3*idx+1]=self.y[self.bx[0]:self.bx[1],self.jointid2[idx]]
+            dat2[:,3*idx+2]=self.z[self.bx[0]:self.bx[1],self.jointid2[idx]]
+            leg2[3*idx]=self.xhead[self.jointid2[idx]]
+            leg2[3*idx+1]=self.yhead[self.jointid2[idx]]
+            leg2[3*idx+2]=self.zhead[self.jointid2[idx]]
         return dat1,leg1,dat2,leg2
 
     # The data is being plotted with the following convension. This
@@ -150,8 +164,8 @@ class plotskeleton(object):
                            self.x[i,self.boneEndIdx[idx]]],\
                           [self.z[i,self.boneStartIdx[idx]],\
                            self.z[i,self.boneEndIdx[idx]]])
-            self.lines[idx].set_3d_properties([self.y[i,self.boneStartIdx[idx]],\
-                                    self.y[i,self.boneEndIdx[idx]]])
+            self.lines[idx].set_3d_properties([self.y[i,\
+            self.boneStartIdx[idx]],self.y[i,self.boneEndIdx[idx]]])
         # Update the marker
         self.marker1.set_data([self.timeStamp[i]/1000.0,\
         self.timeStamp[i]/1000.0],self.axplott1.get_ylim())
@@ -169,13 +183,79 @@ class plotskeleton(object):
         plt.show()
 
 # TODO: Implement it
-def plotSubSkeleton(data,dataHeader,boneConnection,visibleJoints,JointID1=1,\
-    JointID2=9,startEndTime=[],skipframes=0):
+# Given all the joints are not available, this function plots only the joints
+# that is available in the data.
+def plotSubSkeleton(data,dataheader,boneconnection,visibleJoints,jointid1=1,\
+    jointid2=9,startendtime=[],skipframes=0):
     pass
 
-if __name__ == '__main__':
-    data,dataHeader=fio.splitDataFile(*fio.readDataFile('Data/20.1.csv'))[0:2]
-    boneConnection = fio.readSkeletalTree('Data/KinectSkeleton.tree')[1]
-    a = plotskeleton(data,dataHeader,boneConnection,JointID2=(9,10),\
-        skipframes=5,startEndTime=[5000,25000])
+# This function is used when there is no frame or timestamp associated with
+# the joint movement data. It constructs the animation data with the assumption
+# of a specific framerate and displays it. Alternatively it is possible to
+# return the data instead of displaying it
+# Framerate is in frames per second
+def plotJointsOnly(X,framerate=30,noShow=False):
+    N,D = np.shape(X)
+    framestep = 1000/framerate # milliseconds per frame    
+    # Prepare data
+    dataheader=fio.splitdatafile(*fio.readdatafile('Data/test_Data.csv_test'))[1]
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    data = np.zeros((N,D+2))
+    data[:,2:] = X
+    data[:,0] = range(N)
+    data[:,1] = data[:,0]*framestep
+    
+    if not noShow:
+        # Plot skeleton
+        gui = plotskeleton(data,dataheader,boneconnection)
+        gui.show()
+    else:
+        return data
+# Reads a file and plots it
+def unittest1():
+    data,dataheader=fio.splitdatafile(*fio.readdatafile('Data/20.1.csv'))[0:2]
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    a = plotskeleton(data,dataheader,boneconnection,jointid2=(9,10),\
+        skipframes=5,startendtime=[5000,25000])
     a.show()
+# Visualizes the results
+def unittest2():
+    framerate = 30
+    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=5e-07_ALL_1.42487608664e+12.mat'
+    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=6e-07_ALL_1.42488503589e+12.mat'
+    filename = 'Results/top5_all_old/result_M=128_D=12_beta=8e-07_ALL_1.42487494026e+12.mat'
+    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=1e-07_ALL_1.42486686357e+12.mat'
+    
+    #filename = 'Results/top5_all/result_M=128_D=12_beta=5e-07_ALL_1.42497420584e+12.mat'
+    #filename = 'Results/top5_all/result_M=128_D=12_beta=4e-07_ALL_1.42497759288e+12.mat'
+    #filename = 'Results/top5_all/result_M=128_D=12_beta=4.5e-07_ALL_1.42497429898e+12.mat'
+    
+    # Read result file
+    allData = sio.loadmat(filename)
+    # Print nonzero component indices
+    sumAlpha = np.sum(allData['alpha_recon'],axis=0)
+    validIdx = np.nonzero(sumAlpha)
+    
+    while True:
+        print 'Available nonzero components are:'
+        for ind in validIdx:
+            print ind,
+        print
+    #    print 'sum of alpha for these components are:'    
+    #    for sumAlpha in sumAlpha[validIdx]:
+    #        print '{:0.2}'.format(sumAlpha),
+    #    print
+        component = input('which component do you want to see?')
+        
+        # Visualize
+        plt.clf()
+        plt.plot(allData['alpha_recon'][:,component])
+        plt.xlabel('frame')
+        plt.ylabel('alpha')
+        # Show the animation    
+        X = allData['psi_recon'][:,:,component]
+        plotJointsOnly(X,framerate)
+        plt.clf()
+
+if __name__ == '__main__':
+    unittest2()

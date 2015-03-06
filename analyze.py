@@ -202,7 +202,7 @@ def calcGrad_psi(alpha,psi,X,p):
         partconvolve = partial(sg.fftconvolve,in2=alpha[::-1,d],mode='full')
         gradP_psi[:,:,d] = np.array(p.map(partconvolve,lxDiff))\
                                                         [:,(N-M/2):(N+M/2)].T
-    return gradP_psi    
+    return gradP_psi
 ####################### Main Gradient Descent Procedure #######################
 # Applies Convolutional Sparse Coding with Proximal Gradient Descent Algorithm    
 # X is N x K data tensor for only one joint 
@@ -351,9 +351,11 @@ def buildArg():
     'KNEE_RIGHT','ANKLE_RIGHT','FOOT_RIGHT'],\
     metavar='JOINTS_TO_CONSIDER',\
     help='A list of joint names for which the analysis will\
-    be performed. If NONE is selected, then joint selection will not be\
+    be performed. If NONE is selected, the joint selection will not be\
     performed; all the columns in the data variable from the mat file will\
-    directly put to the optimizer. Note: joint selection is not applicable\
+    directly put to the optimizer. If you chose NONE, please alse choose an\
+    appropriate value for -M. Otherwise, it will be automatically set to 2.\
+    Note: joint selection is not applicable\
     for toy data. (default: %(default)s). Must be chosen from the following:\
     %(choices)s',required=False)
 
@@ -366,15 +368,19 @@ def buildArg():
     help='Threshold of difference in log objective function\
     (termination criteria) (default:%(default)s)')
     
-    args.add_argument('-M',nargs='?',type=int,default=64,\
+    args.add_argument('-M',nargs='?',type=int,default=-2,\
     metavar='ATOM_LENGTH',\
     help='The length of atomic units (psi). IOW, the size of each \
-    element of the dictionary. Must be a power of 2. (default: %(default)s)')
+    element of the dictionary. Must be a power of 2. (default: %(default)s)\
+    A negative number indicates the system will automatically choose a\
+    length which is approximately equvalent to abs(M) sec. Does not have\
+    any effect on toy data')
     
     args.add_argument('-D',nargs='?',type=int,default=16,\
     metavar='DICTIONARY_LENGTH',\
     help='The total number of atomic units (psi). In Other Words, the total\
-    number of elements in the dictionary (default: %(default)s)')
+    number of elements in the dictionary (default: %(default)s). Does not have\
+    any effect on toy data')
     
     args.add_argument('-Beta',nargs='?',type=float,default=3e-5,\
     metavar='NON-SPARSITY_COST',\
@@ -457,22 +463,23 @@ def main():
         return
 #    # Load from input data file
     allData = sio.loadmat(args.i)
-    # Read joints and bones
+    # Choose the joints according to arguments
     if 'NONE' in args.j:
         X = allData['data']
+        args.M = M.fabs(args.M)
     elif 'ALL' in args.j:
-        X = fio.getJointData(allData['data'],range(20))
+        X = fio.getjointdata(allData['data'],range(20))
     else:
-        joints,bones = fio.readSkeletalTree(args.skelTree)
+        joints,bones = fio.readskeletaltree(args.skelTree)
         jointList = [joints[jName] for jName in args.j]
-        X = fio.getJointData(allData['data'],jointList)    
+        X = fio.getjointdata(allData['data'],jointList)    
+    # Choose the correct length of psi if M is negative
+    if args.M<0:
+        args.M = nextpow2(np.argmax(allData['data'][:,0]>30*M.fabs(args.M)))
     # Pad the data to make it appropriate size
     numZeros = (nextpow2(len(X))-len(X))
     X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
-    # Apply Convolutional Sparse Coding. 
-    # Length of AEB is set to 2 seconds (60 frames)    
-    # D represents how many Action Units we want to capture
-    # beta should be about 0.05 for 256 datapoints
+    # Apply Convolutional Sparse Coding
     alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
     D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
@@ -480,10 +487,13 @@ def main():
     totWorker=args.p)
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
-        str(args.Beta)+'_'+'_'.join(args.j)+'_'+str(round(time.time()*1000))
+        str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
+        '%H_%M_%S',time.localtime())
     sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
     'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
-    'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j})
+    'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j,'Header':\
+    allData['dataHead'],'timeData':allData['data'][:,0:2],\
+    'decimateratio':allData['decimateratio']})
     print    
     print 'Done!'    
     

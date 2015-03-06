@@ -3,6 +3,33 @@
     Functions starting with the prefix "toyExample" are sample datasets
     created for testing while writing various sections of the code.
     Other functions are created to load and preprocess the original dataset.
+#################################### FILE IO ##################################
+Note 1: Data Formats
+....................
+1) csvData: it is the exact data from the CSV file
+2) data: It contains all the join coordinates with frame number and timestamp.
+      The first two columns of are frame number and timestamp respectively
+3) X: In this matrix each column represents either x, y, or, z component of
+      a joint. It is not defined which column represents which joint. 
+      However, the columns are placed in a nondecreasing order of jointID
+
+Note 2: Order of Data flow
+..........................
+readskeletaltree
+readallfiles_concat
+writeAll
+readdatafile            --> (csvData output)
+|    subsample          --> (csvData output) [call before clean]
+|    clean              --> (csvData output)
+|    calcinvarient      --> (csvData output) [call after clean]
+|    splitdatafile      --> (data output)
+|    |    pad           --> (data output)
+|    |    vcat          --> (data output)
+|    |    getjointdata  --> (X output)
+|    |    |                                                               
+|    |    (data input)
+|    (csvData input)
+(file/folder level input)
 -------------------------------------------------------------------------------
     Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
     Rochester Human-Computer Interaction (ROCHCI)
@@ -13,18 +40,10 @@ import numpy as np
 import os
 import skeletonPlotter as sp
 import scipy.io as sio
+import scipy.signal as sg
 # TODO: change arguments to all lower case
-#################################### FILE IO ##################################
-# Note: 
-# csvData: it is the exact data from the CSV file
-# data: it is the first return value from the function "splitDataFile"
-# First two columns of data are frame number and timestamp respectively
-# X: From this matrix, each column represents either x,y, or, z component of
-# a joint locations. It is not defined which column represents which joint. 
-# However, the columns are placed in a nondecreasing order of jointID
-
 # Read the Skeletal tree file
-def readSkeletalTree(treeFilename):
+def readskeletaltree(treeFilename):
     assert os.path.isfile(treeFilename)
     with open(treeFilename) as f:
         assert f.readline().startswith('Nodes:')
@@ -37,36 +56,78 @@ def readSkeletalTree(treeFilename):
                                                             ).astype(np.int)
         return nodes,edges
 
-# Read the speech boundary file. This file contains information on where the
-# actual speech started and where finished
-# Returns videoList, start_End_time_List
-# Please note that this is an approximate measure of speech boundary because
-# it was measured in the independent video file. The kinect data is
-# not synchronized with that video. So, there is no gurantee that the speech
-# is properly cropped. Even the timestamp might be out of bound in the kinect data.
-def readSpeechBoundary(csvFileName):
-    with open(csvFileName) as f:
-        f.readline()
-        temp = [x.split(',') for x in f.readlines()]
-        videoList = [x[0] for x in temp]
-        starEndList = np.array([x[1:] for x in temp]).astype(np.int)
-    return videoList,starEndList
-
 # Reads the joint position (animation) data file (csv) for the skeleton 
 # returns the contents of the csv file and the headers for each column
-def readDataFile(csvFileName):
+def readdatafile(csvFileName):
     # read datafile
     with open(csvFileName) as f:
         header = f.readline().split(',')[0:-1]
         csvData = [x.split(',') for x in f.readlines()]
         csvData = np.array([x[0:-1] for x in csvData]).astype(np.float)
     return csvData,header
+
+# subsample the animation data. The first two columns (Timeframe and Timestamp)
+# are automatically adjusted.
+# Note: subsampling involves applying low pass filter and then decimate. Low
+# pass filter introduces ripple effect at the boundaries of the signal.
+# Therefore, it is suggested to apply subsample before cleaning the data
+def subsample(csvdata,header,decimateratio):
+    noFilterCols = [0,1]
+    noFilterCols.extend([idx for idx,x in enumerate(header) \
+                                        if x=='Start_Joint' or x=='End_Joint'])
+    filtCols = [idx for idx in range(len(header)) if not idx in noFilterCols]
+    nofiltDat = csvdata[::decimateratio,noFilterCols]
+    sampledCSVdata = np.zeros((len(nofiltDat),np.size(csvdata,axis=1)))
+    sampledCSVdata[:,noFilterCols] = nofiltDat
+    sampledCSVdata[:,filtCols] = sg.decimate(csvdata[:,filtCols],\
+                                                    decimateratio,axis=0)
+    return sampledCSVdata
+
+# Delete the nSecBegin seconds from the begining and nSecEnds seconds from
+# the end because that is usually garbage. The actual crop positions
+# may vary but it will be returned as cropBoundStart,cropBoundEnd
+def clean(csvData,nSecBegin = 5,nSecEnd = 5):
+    cropBoundStart = np.argmax(csvData[:,1]>nSecBegin*1000)
+    cropBoundEnd = np.argmax(csvData[:,1]>(csvData[-1,1] - nSecEnd*1000))
+    csvData = csvData[cropBoundStart:cropBoundEnd,:]
+    csvData[:,:2] = csvData[:,:2] - csvData[0,:2]
+    return csvData,cropBoundStart,cropBoundEnd
+
+# TODO: Rotational invariance
+# Calculates invarient feature by translating the origin in the body
+# It only works on joint coordinates
+def calcinvarient(csvdata,header):
+    # skeletal joints
+    alljoint_x = [idx for idx,x in enumerate(header) if (x.endswith('x'))\
+    and x.find('Orientation')==-1]
+    alljoint_y = [idx for idx,x in enumerate(header) if (x.endswith('y'))\
+    and x.find('Orientation')==-1]
+    alljoint_z = [idx for idx,x in enumerate(header) if (x.endswith('z'))\
+    and x.find('Orientation')==-1]
+    
+    spine=header.index('SPINE_x')
+    shldr=header.index('SHOULDER_CENTER_x')
+    # The spine is the origin. subtract the coordinate of spine from the 
+    # coordinates of all the joints in the skeleton
+    csvdata[:,alljoint_x]=csvdata[:,alljoint_x]-csvdata[:,spine][None].T.\
+                                        dot(np.ones((1,len(alljoint_x))))
+    csvdata[:,alljoint_y]=csvdata[:,alljoint_y]-csvdata[:,spine+1][None].T.\
+                                        dot(np.ones((1,len(alljoint_y))))
+    csvdata[:,alljoint_z]=csvdata[:,alljoint_z]-csvdata[:,spine+2][None].T.\
+                                        dot(np.ones((1,len(alljoint_z))))
+    # Scale the skeleton so that the spine length becomes unity
+    spineVector = csvdata[:,shldr:shldr+3]
+    spineVecLen = np.linalg.norm(spineVector,axis=1)[None].T
+    csvdata[:,alljoint_x] = csvdata[:,alljoint_x]/spineVecLen
+    csvdata[:,alljoint_y] = csvdata[:,alljoint_y]/spineVecLen
+    csvdata[:,alljoint_z] = csvdata[:,alljoint_z]/spineVecLen
+    return csvdata
     
 # Given the contents of the animation data file, it returns the following:
 # data, data_header, Orientation, Orien_Head, ScreenXY, ScreenXY_header
 # The contents of the animation data file should be read using the function
-# readDataFile. Output of this function can be fed directly to this function
-def splitDataFile(csvData,header):
+# readdatafile. Output of this function can be fed directly to this function
+def splitdatafile(csvData,header):
     # Read indices
     scnIdx=[i for i,x in enumerate(header) if x == 'ScreenX' or x == 'ScreenY']
     orientIdx = range(scnIdx[-1]+1,len(header))
@@ -78,57 +139,9 @@ def splitDataFile(csvData,header):
     screenxy = csvData[:,scnIdx]
     screenxy_header = [header[L] for L in scnIdx]
     return data,data_header,orient,orient_header,screenxy,screenxy_header
-
-def rotateByXYZ(data,thetaX,thetaY,thetaZ):
-    
-    data[:,2::3] = data[:,2::3]*np.cos(thetaY)*np.cos(thetaZ)\
-    +data[:,3::3]*(-1*np.cos(thetaX)*np.sin(thetaZ)+np.sin(thetaX)*np.sin(thetaY)*np.cos(thetaZ))\
-    +data[:,4::3]*(np.sin(thetaX)*np.sin(thetaZ)+np.cos(thetaX)*np.sin(thetaY)*np.cos(thetaZ))
-    
-    data[:,3::3] = data[:,2::3]*(np.cos(thetaY)*np.sin(thetaZ))\
-    +data[:,3::3]*(np.cos(thetaX)*np.cos(thetaZ)+np.sin(thetaX)*np.sin(thetaY)*np.sin(thetaZ))\
-    +data[:,4::3]*(-1*np.sin(thetaX)*np.cos(thetaZ)+np.cos(thetaX)*np.sin(thetaY)*np.sin(thetaZ))
-    
-    data[:,4::3] = -1*data[:,2::3]*np.sin(thetaY)\
-    +data[:,3::3]*np.sin(thetaX)*np.cos(thetaY)\
-    +data[:,4::3]*np.cos(thetaX)*np.cos(thetaY)
-    return data
-def quarternionToeuler(qx,qy,qz):
-    ex = np.arctan2(2*(qx+qy*qz),1-2*(qx**2.+qy**2.))
-    ey = np.arcsin(2*(qy-qz*qx))
-    ez = np.arctan2(2*(qz+qx*qy),1-2*(qy**2.+qz**2.))
-    return ex,ey,ez
-# TODO: Rotational and scale invariance
-# Calculates invarient feature by translating the origin in the body
-# It assumes the data to be in the same format 
-# as given by the function readDataFile()
-def calcInvarient(data,orient,refjoint=0):
-    data[:,2::3]=data[:,2::3]-data[:,2+refjoint*3][None].T.dot(np.ones((1,20)))
-    data[:,3::3]=data[:,3::3]-data[:,3+refjoint*3][None].T.dot(np.ones((1,20)))
-    data[:,4::3]=data[:,4::3]-data[:,4+refjoint*3][None].T.dot(np.ones((1,20)))
-    #Orientations in quertarnion
-    qx = orient[:,5+refjoint*8][None].T    
-    qy = orient[:,5+refjoint*8][None].T
-    qz = orient[:,5+refjoint*8][None].T
-    
-    # Convert to Euler rotation
-    eulerX,eulerY,eulerZ = quarternionToeuler(qx,qy,qz)
-    
-    data = rotateByXYZ(data,eulerX,eulerY,eulerZ)
-    return data
-
-# Delete the nSecBegin seconds from the begining and nSecEnds seconds from
-# the end because that is usually garbage. The actual crop positions
-# may vary will be returned in cropBoundStart,cropBoundEnd
-def clean(csvData,nSecBegin = 5,nSecEnd = 5):
-    cropBoundStart = np.argmax(csvData[:,1]>nSecBegin*1000)
-    cropBoundEnd = np.argmax(csvData[:,1]>(csvData[-1,1] - nSecEnd*1000))
-    csvData = csvData[cropBoundStart:cropBoundEnd,:]
-    csvData[:,:2] = csvData[:,:2] - csvData[0,:2]
-    return csvData,cropBoundStart,cropBoundEnd
     
 # returns the x,y,z columns for the specified joint locations only
-def getJointData(data,joints):
+def getjointdata(data,joints):
     # If scalar, convert to tuple
     if isinstance(joints,tuple) == False and \
         isinstance(joints,list) == False:
@@ -145,22 +158,15 @@ def getJointData(data,joints):
             X = np.concatenate((X,temp),axis=1)
     return X
 
-### z-score normalization of skeleton data. The 
-#def normalizeDat(X):    
-#    xMean = np.mean(X,axis=0)
-#    X = (X - xMean)
-#    maxStd = np.max(np.std(X,axis=0))
-#    return X/maxStd
-
 # Pad the end of the first axis with nPad number of null rows. Frame number and
 # Time stamps for the rows are computed automatically for the null rows
-def pad(dat,nPad):
+def pad(data,nPad):
     timepad=np.array([np.arange(nPad)]*2).T
-    timepad[:,1]=timepad[:,0]*dat[-1,1]/(dat[-1,0]) # Keep the framerate same
-    timepad += dat[-1,:2]
-    dat = np.pad(dat,((0,nPad),(0,0)),'constant',constant_values=0)
-    dat[-len(timepad):,:2] = timepad
-    return dat
+    timepad[:,1]=timepad[:,0]*data[-1,1]/(data[-1,0]) # Keep the framerate same
+    timepad += data[-1,:2]
+    data = np.pad(data,((0,nPad),(0,0)),'constant',constant_values=0)
+    data[-len(timepad):,:2] = timepad
+    return data
 
 # Vertically concatenate two matrices. Frame number and
 # Time stamps for the rows are automatically adjusted
@@ -169,7 +175,10 @@ def vcat(dat1,dat2):
     return np.concatenate((dat1[:-1,:],dat2),axis=0)
 
 ## Reads all the skeleton tracking file in a folder.
-def readAllFiles_Concat(startPath,suffix,nPad=150,nSecBegin=5,nSecEnd=5):
+# This function subsamples and cleans the data before concatenating into a
+# giant time series
+def readallfiles_concat(startPath,suffix,decimateratio,invariant=True,\
+                                            nPad=150,nSecBegin=5,nSecEnd=5):
     firstIter = True
     boundDic = {}
     for root,folder,files in os.walk(startPath):
@@ -179,9 +188,12 @@ def readAllFiles_Concat(startPath,suffix,nPad=150,nSecBegin=5,nSecEnd=5):
                 fullPath = os.path.join(root,afile)
                 print fullPath
                 # Read file. 
-                dat,header = readDataFile(fullPath)                
+                csvdat,header = readdatafile(fullPath)                
                 # Clean and pad with zeros
-                dat = clean(dat,nSecBegin,nSecEnd)[0]
+                dat = clean(subsample(csvdat,header,decimateratio)\
+                                                        ,nSecBegin,nSecEnd)[0]
+                if invariant:
+                    dat = calcinvarient(dat,header)
                 datLen=len(dat)
                 dat = pad(dat,nPad)
                 # Concatenate the data
@@ -194,14 +206,25 @@ def readAllFiles_Concat(startPath,suffix,nPad=150,nSecBegin=5,nSecEnd=5):
                     allData = vcat(allData,dat)
         return allData,boundDic,header
 
-# Generate and return a toy data
-#def toyExample_small():
-#    alpha = np.zeros((16,1))
-#    alpha[4] = 1
-#    alpha[12] = -0.5
-#    psi = np.zeros((4,1,1))
-#    psi[:,0,0] = [1,2,1,-1]
-#    return alpha,psi    
+# Writes all the data as input mat file. style can take either 'concat' or
+# 'separate'. 
+def writeAll(outfilename,style,inputpath='Data/',suffix='.csv',decimateRatio=5,
+             invariant=True,nPad=150,nSecBegin=5,nSecEnd=5):
+    assert style=='concat' or style=='separate'
+    if style == 'concat':
+        # Read all the files and split
+        csvDat,boundDic,header = readallfiles_concat(inputpath,suffix,\
+                        decimateRatio,invariant,nPad,nSecBegin,nSecEnd)
+        data,dataHead = splitdatafile(csvDat,header)[:2]
+        # Save the data in matlab format
+        sio.matlab.savemat(outfilename,\
+        {'csvDat':csvDat,'header':header,'data':data,'dataHead':dataHead,\
+        'decimateratio':decimateRatio,'invariant':invariant,'nPad':nPad,\
+        'nSecBegin':nSecBegin,'nSecEnd':nSecEnd})
+        sio.matlab.savemat(outfilename+'_bound.mat',boundDic)
+        print 'Data Saved'
+    return data,dataHead
+
 # Generate and return a toy data
 def toyExample_medium():
     alpha = np.zeros((256,1))
@@ -301,34 +324,39 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
 ############################## End File IO ####################################
-def unitTest1():
-    joints,bones = readSkeletalTree('Data/KinectSkeleton.tree')
-    # Read all the files and split
-    csvDat,boundDic,header = readAllFiles_Concat('Data/','.csv')
-    data,dataHead = splitDataFile(csvDat,header)[:2]
-    # Save the data in matlab format
-    sio.matlab.savemat('Data/top5_skeletal_Data.mat',{'csvDat':csvDat,\
-    'header':header,'data':data,'dataHead':dataHead})
-    sio.matlab.savemat('Data/top5_skeletal_Data_bound.mat',boundDic)
-    print 'Data Saved'
+# Read, subsample, clean and concatenate all the data and save as mat file
+def unitTest1(decimateRatio=5):
+    bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
+    data,dataHead = writeAll('Data/top8_inv_subsampled_skeletal_Data.mat',\
+    'concat',invariant=True)
     #Animate data
-    gui = sp.plotskeleton(data,dataHead,bones,skipframes=5)
+    gui = sp.plotskeleton(data,dataHead,bones,skipframes=0)
     gui.show()
+# load matfile -- test of getjointdata (returns the x,y,z columns for the
+#    specified joint locations only). Not particularly useful
 def unitTest2():
     allData = sio.loadmat('Data/all_skeletal_Data.mat')
-    joints,_ = readSkeletalTree('Data/KinectSkeleton.tree')
-    X = getJointData(allData['data'],(joints['SHOULDER_RIGHT'],\
-    joints['ELBOW_RIGHT'],joints['WRIST_RIGHT'],joints['HAND_RIGHT']))
+    joints,_ = readskeletaltree('Data/KinectSkeleton.tree')
+    X,datHead = getjointdata(allData['data'],(joints['SHOULDER_RIGHT'],\
+    joints['ELBOW_RIGHT'],joints['WRIST_RIGHT'],joints['HAND_RIGHT']),\
+    allData['dataHead'])
     print np.shape(X)
-    pass
-
+# Animate/Plot cleaned and invariant data
 def unitTest3():
-    bones = readSkeletalTree('Data/KinectSkeleton.tree')[1]
-    dat,datHead,orient = splitDataFile(*readDataFile('Data/13.3.csv'))[:3]    
-    invdat=calcInvarient(dat,orient)
-    
-    gui = sp.plotskeleton(invdat,datHead,bones,skipframes=0)
+    bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
+    csvDat,header = readdatafile('Data/20.2.csv')
+    dat,datHead = splitdatafile(calcinvarient(clean(csvDat)[0],header))[:2]
+    gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
+    gui.show()
+# Animate/Plot subsampled, cleaned, and invariant data
+def unitTest4():
+    bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
+    csvDat,header = readdatafile('Data/20.2.csv')
+    # Subsample by a ratio of 5, clean and split the data
+    dat,datHead = splitdatafile(calcinvarient(clean(subsample(csvDat,\
+                                            header,5))[0],header))[:2]    
+    gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
     gui.show()
 
 if __name__ == '__main__':
-    unitTest3()
+    unitTest1()
