@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #resultPath = 'Results/top5_all_old'
-resultPath = 'Results/top5_all'
+resultPath = 'Results/top8_all/'
 
 LplotDat = []
 for root,folder,files in os.walk(resultPath):

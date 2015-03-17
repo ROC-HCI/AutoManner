@@ -188,7 +188,19 @@ class plotskeleton(object):
 def plotSubSkeleton(data,dataheader,boneconnection,visibleJoints,jointid1=1,\
     jointid2=9,startendtime=[],skipframes=0):
     pass
-
+# Plot only a single frame
+def plotsingleframe(data,dataheader,boneconnection):
+    fig = plt.figure('Single_Plot')
+    ax = fig.add_subplot(111, projection='3d')
+    x = data[:,2::3]
+    xhead = dataheader[2::3]
+    y = data[:,3::3]
+    yhead = dataheader[3::3]        
+    z = data[:,4::3]
+    zhead = dataheader[4::3]
+    # Connection of bones
+    #lines_ = [ax.plot([x[bx[0],start],x[bx[0],end]],[z[bx[0],start],z[bx[0],end]],zs=[y[bx[0],start],y[bx[0],end]],animated=True)[0]  for start,end in zip(boneStartIdx,boneEndIdx)]
+    
 # This function is used when there is no frame or timestamp associated with
 # the joint movement data. It constructs the animation data with the assumption
 # of a specific framerate and displays it. Alternatively it is possible to
@@ -198,7 +210,7 @@ def plotJointsOnly(X,framerate=30,noShow=False):
     N,D = np.shape(X)
     framestep = 1000/framerate # milliseconds per frame    
     # Prepare data
-    dataheader=fio.splitdatafile(*fio.readdatafile('Data/test_Data.csv_test'))[1]
+    dataheader=fio.splitcsvfile(*fio.readdatafile('Data/test_Data.csv_test'))[1]
     boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
     data = np.zeros((N,D+2))
     data[:,2:] = X
@@ -213,22 +225,17 @@ def plotJointsOnly(X,framerate=30,noShow=False):
         return data
 # Reads a file and plots it
 def unittest1():
-    data,dataheader=fio.splitdatafile(*fio.readdatafile('Data/20.1.csv'))[0:2]
+    data,dataheader=fio.splitcsvfile(*fio.readdatafile('Data/20.1.csv'))[0:2]
     boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
     a = plotskeleton(data,dataheader,boneconnection,jointid2=(9,10),\
         skipframes=5,startendtime=[5000,25000])
     a.show()
 # Visualizes the results
 def unittest2():
-    framerate = 30
+    framerate = 6
     #filename = 'Results/top5_all_old/result_M=128_D=12_beta=5e-07_ALL_1.42487608664e+12.mat'
     #filename = 'Results/top5_all_old/result_M=128_D=12_beta=6e-07_ALL_1.42488503589e+12.mat'
-    filename = 'Results/top5_all_old/result_M=128_D=12_beta=8e-07_ALL_1.42487494026e+12.mat'
-    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=1e-07_ALL_1.42486686357e+12.mat'
-    
-    #filename = 'Results/top5_all/result_M=128_D=12_beta=5e-07_ALL_1.42497420584e+12.mat'
-    #filename = 'Results/top5_all/result_M=128_D=12_beta=4e-07_ALL_1.42497759288e+12.mat'
-    #filename = 'Results/top5_all/result_M=128_D=12_beta=4.5e-07_ALL_1.42497429898e+12.mat'
+    filename = 'Results/top8_all/result_M=8_D=12_beta=5e-07_ALL_20_19_33.mat'
     
     # Read result file
     allData = sio.loadmat(filename)
@@ -256,6 +263,10 @@ def unittest2():
         X = allData['psi_recon'][:,:,component]
         plotJointsOnly(X,framerate)
         plt.clf()
-
+# Load mean skeleton and plot it
+def unittest3():
+    data = sio.loadmat('Data/meanSkel.mat')
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    plotsingleframe(data['avgSkel'],data['header'],boneconnection)
 if __name__ == '__main__':
-    unittest2()
+    unittest3()

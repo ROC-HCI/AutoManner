@@ -237,6 +237,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         gamma_psi = 1.0
         # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X,workers)
+        #Line search
         while True:
             newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
             if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi,grpsi,workers)<\
@@ -254,7 +255,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
         gamma_alpha = 1.0
         # Calculate gradient of P with respect to alpha
         gralpha = calcGrad_alpha(alpha,psi,X,workers)
-        # Apply accelerated
+        # Line search
         while True:
             newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
             if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha,\
@@ -455,36 +456,73 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
 def main():
     # Handle arguments
     parser = buildArg()
-    args = parser.parse_args()    
+    args = parser.parse_args()
+    
+    # In case of toy data
     if not args.toy == None:
         alpha_recon,psi_recon = toyTest(args.toy,D=2,M=64,beta=args.Beta,\
             disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
             dispIteration=args.Disp_Iterations,totWorker=args.p)
         return
-#    # Load from input data file
+        
+    # In case of real data, load the input file
     allData = sio.loadmat(args.i)
-    # Choose the joints according to arguments
-    if 'NONE' in args.j:
-        X = allData['data']
-        args.M = M.fabs(args.M)
-    elif 'ALL' in args.j:
-        X = fio.getjointdata(allData['data'],range(20))
-    else:
-        joints,bones = fio.readskeletaltree(args.skelTree)
-        jointList = [joints[jName] for jName in args.j]
-        X = fio.getjointdata(allData['data'],jointList)    
-    # Choose the correct length of psi if M is negative
-    if args.M<0:
-        args.M = nextpow2(np.argmax(allData['data'][:,0]>30*M.fabs(args.M)))
-    # Pad the data to make it appropriate size
-    numZeros = (nextpow2(len(X))-len(X))
-    X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
-    # Apply Convolutional Sparse Coding
-    alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
-    D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
-    thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
-    dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
-    totWorker=args.p)
+    if not 'style' in allData.keys():
+        allData['style']='concat'
+    
+    # The input data file is saved in two different format: concat and separate
+    if allData['style']=='concat':
+        # Choose the joints according to arguments
+        if 'NONE' in args.j:
+            X = allData['data']
+            args.M = M.fabs(args.M)
+        elif 'ALL' in args.j:
+            X = fio.getjointdata(allData['data'],range(20))
+        else:
+            joints,bones = fio.readskeletaltree(args.skelTree)
+            jointList = [joints[jName] for jName in args.j]
+            X = fio.getjointdata(allData['data'],jointList)    
+        # Choose the correct length of psi if M is negative
+        if args.M<0:
+            args.M=nextpow2(np.argmax(allData['data'][:,0]>30*M.fabs(args.M)))
+        # Pad the data to make it appropriate size
+        numZeros = (nextpow2(len(X))-len(X))
+        X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
+        # Apply Convolutional Sparse Coding
+        alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
+        D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
+        thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
+        dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
+        totWorker=args.p)
+    # if the input data file is saved as separate style, use stochastic
+    # gradient descent module
+    elif allData['style']=='separate':
+        raise Exception('The input file format is not supported')
+#        datalist = [allData['data_'+str(i)] for i in \
+#                                    xrange(len(allData['filenamelist']))]
+#        if 'NONE' in args.j:
+#            X = datalist
+#            args.M = M.fabs(args.M)
+#        elif 'ALL' in args.j:
+#            X = [fio.getjointdata(data,range(20)) for data in datalist]
+#        else:
+#            joints,bones = fio.readskeletaltree(args.skelTree)
+#            jointList = [joints[jName] for jName in args.j]
+#            X = [fio.getjointdata(data,jointList) for data in datalist]
+#        # Choose the correct length of psi if M is negative
+#        if args.M<0:
+#            args.M=nextpow2(np.argmax(datalist[0][:,0]>30*M.fabs(args.M)))
+#        # Pad the data to make it appropriate size
+#        for indx in xrange(len(X)):
+#            numZeros = (nextpow2(len(X[indx]))-len(X[indx]))
+#            X[indx] = np.pad(X[indx],((0,numZeros),(0,0)),\
+#            'constant',constant_values=0)
+#        # Apply Convolutional Sparse Coding with stochastic gradient descent
+#        alpha_recon,psi_recon,logObj,reconError,L0 = csc_sgd(X,M=args.M,\
+#        D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
+#        thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
+#        dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
+#        totWorker=args.p)
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
         str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
@@ -495,7 +533,7 @@ def main():
     allData['dataHead'],'timeData':allData['data'][:,0:2],\
     'decimateratio':allData['decimateratio']})
     print    
-    print 'Done!'    
+    print 'Done!'
     
 if __name__ == '__main__':
     main()
