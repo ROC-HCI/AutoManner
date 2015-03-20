@@ -498,31 +498,6 @@ def main():
     # gradient descent module
     elif allData['style']=='separate':
         raise Exception('The input file format is not supported')
-#        datalist = [allData['data_'+str(i)] for i in \
-#                                    xrange(len(allData['filenamelist']))]
-#        if 'NONE' in args.j:
-#            X = datalist
-#            args.M = M.fabs(args.M)
-#        elif 'ALL' in args.j:
-#            X = [fio.getjointdata(data,range(20)) for data in datalist]
-#        else:
-#            joints,bones = fio.readskeletaltree(args.skelTree)
-#            jointList = [joints[jName] for jName in args.j]
-#            X = [fio.getjointdata(data,jointList) for data in datalist]
-#        # Choose the correct length of psi if M is negative
-#        if args.M<0:
-#            args.M=nextpow2(np.argmax(datalist[0][:,0]>30*M.fabs(args.M)))
-#        # Pad the data to make it appropriate size
-#        for indx in xrange(len(X)):
-#            numZeros = (nextpow2(len(X[indx]))-len(X[indx]))
-#            X[indx] = np.pad(X[indx],((0,numZeros),(0,0)),\
-#            'constant',constant_values=0)
-#        # Apply Convolutional Sparse Coding with stochastic gradient descent
-#        alpha_recon,psi_recon,logObj,reconError,L0 = csc_sgd(X,M=args.M,\
-#        D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
-#        thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
-#        dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
-#        totWorker=args.p)
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
         str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\

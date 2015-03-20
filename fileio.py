@@ -116,7 +116,7 @@ def calcinvarient(csvdata,header):
     and x.find('Orientation')==-1]
     alljoint_z = [idx for idx,x in enumerate(header) if (x.endswith('z'))\
     and x.find('Orientation')==-1]
-    
+    # Reference    
     spine=header.index('SPINE_x')
     shldr=header.index('SHOULDER_CENTER_x')
     # The spine is the origin. subtract the coordinate of spine from the 
@@ -422,27 +422,49 @@ def unitTest4():
                                             header,5))[0],header),header)[:2]    
     gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
     gui.show()
-# Calculate the mean-invarient-skeleton in the whole dataset    
+# Calculate the average pose from the whole dataset    
 def unitTest5():
     csvlist,filenamelist,header = readallfiles_separate('Data/',\
     suffix='.csv',decimateratio=5,invariant=True)
-             
     firsttime=True
     count=0.
+    # to remove the weight of each video length, we calculate the average of
+    # the average
     for acsv in csvlist:
         data = splitcsvfile(acsv,header)[0]
         if firsttime:
             firsttime=False            
             sumdat = np.sum(data,axis=0)
         else:
-            sumdat = np.sum(data,axis=0)
+            sumdat = sumdat + np.sum(data,axis=0)
         count+=len(data)
     avgSkel = sumdat/count
     avgSkel[0:2]=0
     header = splitcsvfile(acsv,header)[1]
     sio.savemat('Data/meanSkel.mat',{'avgSkel':avgSkel,'header':header})
     print 'done'
-    
+# Calculate per person average
+def unitTest6():
+    csvlist,filenamelist,csvheader = readallfiles_separate('Data/',\
+                    suffix='.csv',decimateratio=5,invariant=True)
+    oldperid = int(filenamelist[0][-8:-6])
+    sumdat=0
+    count=0
+    for id,acsv in enumerate(csvlist):
+        data,header = splitcsvfile(acsv,csvheader)[:2]
+        perid = int(filenamelist[id][-8:-6])
+        if not (oldperid == perid):
+            avgSkel = sumdat/count
+            avgSkel[0:2]=0    
+            sio.savemat('Data/meanSkel_'+str(oldperid)+'.mat',\
+                        {'avgSkel':avgSkel,'header':header})
+            oldperid=perid
+            sumdat=0
+            count=0
+        else:
+            sumdat = sumdat + np.sum(data,axis=0)
+            count = count + len(data)
+    print 'done'    
 
 if __name__ == '__main__':
     unitTest5()
