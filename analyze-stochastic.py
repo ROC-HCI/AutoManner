@@ -206,7 +206,7 @@ def onepointgd(X,psi,beta_,K,D,M,iter_,dispGrad,dispIteration,dispObj,\
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
     # Scaling Beta
     beta = beta_*N*K
-    alpha = csc_init(M,N,K,D)[1]   # drop previous alpha
+    alpha = csc_init(M,N,K,D)[1]   # initialize alpha
     factor = 0.5
     prevlikeli = loglike(X,alpha,psi,beta)
     maxDeltaLikeli = 0
@@ -288,7 +288,7 @@ def onepointgd(X,psi,beta_,K,D,M,iter_,dispGrad,dispIteration,dispObj,\
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-def csc_sgd(Xlist,M,D,beta_,iter_thresh=65536,dispObj=False,\
+def csc_sgd(Xlist,X_mean,M,D,beta_,iter_thresh=65536,dispObj=False,\
 		dispGrad=False,dispIteration=False,totWorker=4):
     iter_ = 0
     breakfree = False
@@ -301,7 +301,7 @@ def csc_sgd(Xlist,M,D,beta_,iter_thresh=65536,dispObj=False,\
         #TODO: this loop should be parallelized
         for _i_ in xrange(len(Xlist)):
             psi=psi_dic.copy()
-            psi,alpha,likeli,breakfree,iter_,X = onepointgd(Xlist[_i_],\
+            psi,alpha,likeli,breakfree,iter_,X = onepointgd(Xlist[_i_]-X_mean,\
             psi,beta_,K,D,M,iter_,dispGrad,dispIteration,dispObj,\
             iter_thresh,breakfree)
             # the updated psi will be added to the dictionary
@@ -312,10 +312,12 @@ def csc_sgd(Xlist,M,D,beta_,iter_thresh=65536,dispObj=False,\
             break #while
     reconError = calcP(X,alpha,psi)
     L0 = np.count_nonzero(alpha)
+    psi = psi + np.transpose(X_mean[None],axes=(0,2,1))
     return alpha,psi,likeli,reconError,L0
 ################################# Main Helper #################################
 def buildArg():
-    args = ArgumentParser(description="Automatic Extraction of Human Behavior")
+    args = ArgumentParser(description='Automatic Extraction of Human Behavior\
+    with stochastic gradient descent')
 
     args.add_argument('-i',nargs='?',default='Data/all_skeletal_Data.mat',\
     metavar='INPUT_MAT_FILENAME',\
@@ -336,6 +338,11 @@ def buildArg():
     args.add_argument('-skelTree',nargs='?',default=\
     'Data/KinectSkeleton.tree',metavar='SKELETON_TREE_FILENAME',\
     help='A .tree file containing kinect skeleton tree (default: %(default)s)')
+        
+    args.add_argument('-meanFile',nargs='?',default=\
+    'Data/meanSkel.mat',metavar='MEAN_SKELETON_FILENAME',\
+    help='A .mat file containing the mean (average) of all the feature values \
+    (default: %(default)s)')
 
     args.add_argument('-iter_thresh',nargs='?',type=int,default=65536,\
     metavar='ITERATION_THRESHOLD',\
@@ -387,6 +394,8 @@ def main():
     allData = sio.loadmat(args.i)
     if not 'style' in allData.keys():
         allData['style']='concat'
+    # Load the mean feature file
+    meanDat = sio.loadmat(args.meanFile)
     
     # The input data file is saved in two different format: concat and separate
     if allData['style']=='concat':
@@ -395,6 +404,7 @@ def main():
         datalist = [allData['data_'+str(i)] for i in \
                                     xrange(len(allData['filenamelist']))]
         X = [fio.getjointdata(data,range(20)) for data in datalist]
+        X_mean = fio.getjointdata(meanDat['avgSkel'],range(20))
         
         # Choose the correct length of psi if M is negative
         if args.M<0:
@@ -403,20 +413,21 @@ def main():
         for indx in xrange(len(X)):
             numZeros = (nextpow2(len(X[indx]))-len(X[indx]))
             X[indx] = np.pad(X[indx],((0,numZeros),(0,0)),\
-            'constant',constant_values=0)
+            'constant',constant_values=1)
+            X[indx][-numZeros:,:]*=X_mean
         # Apply Convolutional Sparse Coding with stochastic gradient descent
-        alpha_recon,psi_recon,logObj,reconError,L0 = csc_sgd(X,M=args.M,\
-        D=args.D,beta_=args.Beta,iter_thresh=args.iter_thresh,\
+        alpha_recon,psi_recon,logObj,reconError,L0 = csc_sgd(X,X_mean,\
+        M=args.M,D=args.D,beta_=args.Beta,iter_thresh=args.iter_thresh,\
         dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,
         dispIteration=args.Disp_Iterations,totWorker=args.p)
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
-        str(args.Beta)+'_'+'_'+time.strftime(\
+        str(args.Beta)+'_'+time.strftime(\
         '%H_%M_%S',time.localtime())
     sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
     'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
     'M':args.M,'D':args.D,'Beta':args.Beta,'Header':\
-    allData['dataHead'],'timeData':allData['data'][:,0:2],\
+    allData['dataHead'],'timeData':allData['data_0'][:,0:2],\
     'decimateratio':allData['decimateratio']})
     print
     print 'Done!'

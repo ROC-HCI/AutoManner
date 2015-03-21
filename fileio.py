@@ -396,7 +396,7 @@ def unitTest1():
 # Read, subsample, clean all the data but keep them separate
 def unitTest1_sep():
     data,dataHead = writeAll('Data/10_inv_subsampled_skeletal_Data.mat',\
-    'concat','Data/','Data/meanSkel.mat',5)
+    'separate','Data/','Data/meanSkel.mat',5)
     pass
 # load matfile -- test of getjointdata (returns the x,y,z columns for the
 #    specified joint locations only). Not particularly useful
@@ -470,4 +470,4 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest1()
+    unitTest1_sep()
