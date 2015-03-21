@@ -243,25 +243,29 @@ def readallfiles_separate(startPath,suffix,decimateratio,invariant=True,\
     return csvDataList,filenamelist,header
 
 # Writes all the data as input mat file. style can take either 'concat' or
-# 'separate'. 
-def writeAll(outfilename,style,inputpath='Data/',suffix='.csv',decimateRatio=5,
-             invariant=True,nPad=150,nSecBegin=5,nSecEnd=5):
+# 'separate'. Before writing, this function subtracts the mean
+def writeAll(outfilename,style,inputpath='Data/',\
+    meanfile = 'Data/meanSkel.mat',decimateRatio=5):
     assert style=='concat' or style=='separate'
+    meandata = sio.loadmat(meanfile)
+
     if style == 'concat':
         # Read all the files and split
-        csvDat,boundDic,header = readallfiles_concat(inputpath,suffix,\
-                        decimateRatio,invariant,nPad,nSecBegin,nSecEnd)
+        csvDat,boundDic,header = readallfiles_concat(inputpath,'.csv',\
+                        decimateRatio,True)
         data,dataHead = splitcsvfile(csvDat,header)[:2]
+        #Subtract mean
+        data = data - meandata['avgSkel']
         # Save the data in matlab format
         sio.matlab.savemat(outfilename,\
         {'csvDat':csvDat,'header':header,'data':data,'dataHead':dataHead,\
-        'decimateratio':decimateRatio,'invariant':invariant,'nPad':nPad,\
-        'nSecBegin':nSecBegin,'nSecEnd':nSecEnd,'style':style})
+        'decimateratio':decimateRatio,'invariant':True,'nPad':150,\
+        'nSecBegin':5,'nSecEnd':5,'style':style})
         sio.matlab.savemat(outfilename+'_bound.mat',boundDic)
         print 'Data Saved'
     else:
-        csvlist,filenamelist,header = readallfiles_separate(inputpath,suffix,\
-                        decimateRatio,invariant,nPad,nSecBegin,nSecEnd)
+        csvlist,filenamelist,header = readallfiles_separate(inputpath,'.csv',\
+                        decimateRatio,True)
         datDic={}
         data=[]
         for i,csvDat in enumerate(csvlist):
@@ -273,11 +277,10 @@ def writeAll(outfilename,style,inputpath='Data/',suffix='.csv',decimateRatio=5,
         datDic['filenamelist']=filenamelist
         datDic['dataHead']=dataHead
         datDic['decimateratio']=decimateRatio
-        datDic['invariant']=invariant
-        datDic['nSecBegin']=nSecBegin
-        datDic['nSecEnd']=nSecEnd
+        datDic['invariant']=True
+        datDic['nSecBegin']=5
+        datDic['nSecEnd']=5
         datDic['style']=style
-        
         # Save the data in matlab format
         sio.matlab.savemat(outfilename,datDic)
         print 'Data Saved'
@@ -383,17 +386,17 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     return alpha,psi
 ############################## Test Module ####################################
 # Read, subsample, clean and concatenate all the data and save as mat file
-def unitTest1(decimateRatio=5):
+def unitTest1():
     bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
-    data,dataHead = writeAll('Data/top31_inv_subsampled_skeletal_Data.mat',\
-    'concat',invariant=True,decimateRatio=decimateRatio)
+    data,dataHead = writeAll('Data/10_inv_subsampled_skeletal_Data.mat',\
+    'concat','Data/','Data/meanSkel.mat',5)
     #Animate data
     gui = sp.plotskeleton(data,dataHead,bones,skipframes=0)
     gui.show()
 # Read, subsample, clean all the data but keep them separate
-def unitTest1_sep(decimateRatio=5):
-    data,dataHead = writeAll('Data/top31_inv_subsampled_skeletal_Data.mat',\
-    'separate',invariant=True,decimateRatio=decimateRatio)
+def unitTest1_sep():
+    data,dataHead = writeAll('Data/10_inv_subsampled_skeletal_Data.mat',\
+    'concat','Data/','Data/meanSkel.mat',5)
     pass
 # load matfile -- test of getjointdata (returns the x,y,z columns for the
 #    specified joint locations only). Not particularly useful
@@ -467,4 +470,4 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest5()
+    unitTest1()

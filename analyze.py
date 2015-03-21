@@ -209,9 +209,10 @@ def calcGrad_psi(alpha,psi,X,p):
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
-def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
+def csc_pgd(X,X_mean,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
 		dispGrad=False,dispIteration=False,totWorker=4):
     iter = 0
+    X = X - X_mean
     N,K = np.shape(X)
     # Scaling of Beta: The nonsparsity cost beta should be linear to the 
     # total number of scalars involved in the objective function (N*K)
@@ -312,6 +313,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
             prevlikeli = likeli
     reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)
+    psi = psi + np.transpose(X_mean[None],axes=(0,2,1))
     return alpha,psi,likeli,reconError,L0
 ################################# Main Helper #################################
 def buildArg():
@@ -342,6 +344,11 @@ def buildArg():
     args.add_argument('-skelTree',nargs='?',default=\
     'Data/KinectSkeleton.tree',metavar='SKELETON_TREE_FILENAME',\
     help='A .tree file containing kinect skeleton tree (default: %(default)s)')
+
+    args.add_argument('-meanFile',nargs='?',default=\
+    'Data/meanSkel.mat',metavar='MEAN_SKELETON_FILENAME',\
+    help='A .mat file containing the mean (average) of all the feature values \
+    (default: %(default)s)')
 
     args.add_argument('-j',nargs='*',\
     default=['ALL'],\
@@ -437,7 +444,8 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
-    alpha_recon,psi_recon = csc_pgd(X,M,D,beta,dispObj=dispObj,\
+    X_mean = np.zeros(np.shape(X))
+    alpha_recon,psi_recon = csc_pgd(X,X_mean,M,D,beta,dispObj=dispObj,\
                     dispGrad=dispGrad,dispIteration=dispIteration)[:2]
     # Display the reconstructed values
     if disp:
@@ -469,19 +477,24 @@ def main():
     allData = sio.loadmat(args.i)
     if not 'style' in allData.keys():
         allData['style']='concat'
+    # Load the mean feature file
+    meanDat = sio.loadmat(args.meanFile)
     
     # The input data file is saved in two different format: concat and separate
     if allData['style']=='concat':
         # Choose the joints according to arguments
         if 'NONE' in args.j:
             X = allData['data']
+            X_mean = np.zeros(np.shape(X))
             args.M = M.fabs(args.M)
         elif 'ALL' in args.j:
             X = fio.getjointdata(allData['data'],range(20))
+            X_mean = fio.getjointdata(meanDat['avgSkel'],range(20))
         else:
             joints,bones = fio.readskeletaltree(args.skelTree)
             jointList = [joints[jName] for jName in args.j]
-            X = fio.getjointdata(allData['data'],jointList)    
+            X = fio.getjointdata(allData['data'],jointList)
+            X_mean = fio.getjointdata(meanDat['avgSkel'],jointList)
         # Choose the correct length of psi if M is negative
         if args.M<0:
             args.M=nextpow2(np.argmax(allData['data'][:,0]>30*M.fabs(args.M)))
@@ -489,8 +502,8 @@ def main():
         numZeros = (nextpow2(len(X))-len(X))
         X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
         # Apply Convolutional Sparse Coding
-        alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
-        D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
+        alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,X_mean,\
+        M=args.M,D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
         thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
         dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
         totWorker=args.p)

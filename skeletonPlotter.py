@@ -418,6 +418,7 @@ if __name__ == '__main__':
     #unittest4('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest5('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
-    unittest3('Data/meanSkel.mat',True)
+    #unittest3('Data/meanSkel.mat',True)
     #unittest3(True)
     #unittest3(False)
+    unittest2('Results/top8_all/result_M=8_D=12_beta=5e-07_ALL_20_19_33.mat')

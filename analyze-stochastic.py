@@ -418,7 +418,7 @@ def main():
     'M':args.M,'D':args.D,'Beta':args.Beta,'Header':\
     allData['dataHead'],'timeData':allData['data'][:,0:2],\
     'decimateratio':allData['decimateratio']})
-    print    
+    print
     print 'Done!'
     
 if __name__ == '__main__':
