@@ -341,7 +341,8 @@ def toyExample_medium_1d_multicomp():
     alpha = np.zeros((256,2))
     alpha[30,0] = 0.5
     alpha[100,0] = 1
-    alpha[120,0] = -0.5
+    alpha[125,0] = 1
+    alpha[175,0] = 1
     alpha[230,0] = -1
     alpha[50,1] = -0.5
     alpha[100,1] = 1
