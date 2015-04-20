@@ -139,7 +139,8 @@ def shrink(alpha, threshold):
 # psi represents all the AEBs (D number of them)
 # M is a scalar integer representing time/frame length for AEB 
 def csc_init(M,N,K,D):
-    psi = projectPsi(np.random.randn(M,K,D),1.0)
+    # psi = projectPsi(np.random.rand((M,K,D)),1.0) # Random initialization
+    psi = projectPsi(np.ones((M,K,D)),1.0)  # Fixed initialization
     alpha = np.zeros((N,D))
     return psi,alpha
 ######################## Functions for Data Reconstruction ####################
@@ -432,9 +433,9 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         D=1
         alpha,psi = fio.toyExample_medium_1d()
     elif dataID==5:
-        D = 3
+        D = 2
         M = 32
-        beta =  4e-5
+        beta =  3e-5
         alpha,psi = fio.toyExample_medium_1d_multicomp()
     elif dataID==6:
         alpha,psi = fio.toyExample_medium_3d_multicomp() 

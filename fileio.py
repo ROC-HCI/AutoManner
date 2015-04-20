@@ -338,7 +338,7 @@ def toyExample_medium_1d():
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_1d_multicomp():
-    alpha = np.zeros((256,3))
+    alpha = np.zeros((256,2))
     alpha[30,0] = 0.5
     alpha[100,0] = 1
     alpha[120,0] = -0.5
@@ -347,16 +347,11 @@ def toyExample_medium_1d_multicomp():
     alpha[100,1] = 1
     alpha[150,1] = -1
     alpha[200,1] = 1
-    alpha[75,2] = 0.5    
-    alpha[100,2] = -1
-    alpha[140,2] = 0.25
-    alpha[170,2] = -0.75
-    alpha[230,2] = 1
     xVal = np.linspace(-1,1,32)*np.pi
-    psi = np.zeros((len(xVal),1,3))
+    psi = np.zeros((len(xVal),1,2))
     psi[:,0,0] = np.cos(xVal/2.0)
     psi[:,0,1] = np.pi - np.abs(xVal)
-    psi[:,0,2] = np.greater_equal(np.pi/2.,np.abs(xVal))
+    #psi[:,0,2] = np.greater_equal(np.pi/2.,np.abs(xVal))
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_3d_multicomp():
