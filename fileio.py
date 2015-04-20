@@ -338,18 +338,25 @@ def toyExample_medium_1d():
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_1d_multicomp():
-    alpha = np.zeros((256,2))
-    alpha[35,0] = 0.5
-    alpha[140,0] = -0.5
-    alpha[160,0] = 1
-    alpha[220,0] = -1
-    alpha[50,1] = 0.5
-    alpha[100,1] = -0.5
+    alpha = np.zeros((256,3))
+    alpha[30,0] = 0.5
+    alpha[100,0] = 1
+    alpha[120,0] = -0.5
+    alpha[230,0] = -1
+    alpha[50,1] = -0.5
+    alpha[100,1] = 1
+    alpha[150,1] = -1
     alpha[200,1] = 1
+    alpha[75,2] = 0.5    
+    alpha[100,2] = -1
+    alpha[140,2] = 0.25
+    alpha[170,2] = -0.75
+    alpha[230,2] = 1
     xVal = np.linspace(-1,1,32)*np.pi
-    psi = np.zeros((len(xVal),1,2))
-    psi[:,0,0] = np.sin(xVal)
+    psi = np.zeros((len(xVal),1,3))
+    psi[:,0,0] = np.cos(xVal/2.0)
     psi[:,0,1] = np.pi - np.abs(xVal)
+    psi[:,0,2] = np.greater_equal(np.pi/2.,np.abs(xVal))
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_3d_multicomp():
@@ -384,19 +391,19 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
-############################## Test Module ####################################
+############################## Test Modules ####################################
 # Read, subsample, clean and concatenate all the data and save as mat file
-def unitTest1():
+def unitTest1(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
     bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
-    data,dataHead = writeAll('Data/10_inv_subsampled_skeletal_Data.mat',\
-    'concat','Data/','Data/meanSkel.mat',5)
+    data,dataHead = writeAll(outfilename,'concat','Data/',\
+    'Data/meanSkel.mat',5)
     #Animate data
     gui = sp.plotskeleton(data,dataHead,bones,skipframes=0)
     gui.show()
 # Read, subsample, clean all the data but keep them separate
-def unitTest1_sep():
-    data,dataHead = writeAll('Data/10_inv_subsampled_skeletal_Data.mat',\
-    'separate','Data/','Data/meanSkel.mat',5)
+def unitTest1_sep(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
+    data,dataHead = writeAll(outfilename,'separate','Data/',\
+    'Data/meanSkel.mat',5)
     pass
 # load matfile -- test of getjointdata (returns the x,y,z columns for the
 #    specified joint locations only). Not particularly useful
@@ -470,4 +477,5 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest1_sep()
+    unitTest1()
+    #unitTest5()

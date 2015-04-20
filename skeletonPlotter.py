@@ -334,6 +334,7 @@ def plotJointsOnly(X,framerate=30,noShow=False):
         gui.show()
     else:
         return data
+############################## Test Modules ####################################        
 # Reads a file and plots it
 def unittest1():
     data,dataheader=fio.splitcsvfile(*fio.readdatafile('Data/20.1.csv'))[0:2]
@@ -419,6 +420,4 @@ if __name__ == '__main__':
     #unittest5('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest3('Data/meanSkel.mat',True)
-    #unittest3(True)
-    #unittest3(False)
-    unittest2('Results/top8_all/result_M=8_D=12_beta=5e-07_ALL_20_19_33.mat')
+    unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
