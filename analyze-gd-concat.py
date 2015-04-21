@@ -43,43 +43,56 @@ def dispPlots(alpha,psi,X,figureName,p):
     for d in xrange(D):
         pp.figure(figureName + ' for component # '+'{:0}'.format(d))
         pp.clf()    
-        pp.subplot(511)
+        pp.subplot(411)
         pp.plot(X)
+        pp.axis('tight')
         yrange = pp.ylim()        
         pp.title('Original Data')        
-        pp.subplot(512)
+        pp.subplot(412)
         L = recon(alpha,psi,p)
         pp.plot(L)
+        pp.axis('tight')
         pp.ylim(yrange)
         pp.title('Reconstructed Data')    
-        pp.subplot(513)
+        pp.subplot(413)
         pp.plot(L - X)
+        pp.axis('tight')
         pp.ylim(yrange)
-        pp.title('Reconstructed - Original')        
-        pp.subplot(514)
-        pp.plot(psi[:,:,d])
-        pp.title('psi')
-        pp.subplot(515)
+        pp.title('Reconstructed - Original')
+        pp.subplot(414)
         pp.stem(alpha[:,d])
+        pp.axis('tight')
         pp.title('alpha')     
         pp.draw()
-        pp.pause(0.3)
+    pp.figure('reconstructed psi')
+    for d in xrange(D):
+        pp.subplot(D,1,d+1)
+        pp.plot(psi[:,:,d])
+        pp.axis('tight')
+        pp.title('psi')
+        pp.draw()
+    pp.pause(0.3)
 # Plot the original alpha, psi and X
 def dispOriginal(alpha,psi):
-    pp.figure('Original Alpha and Psi')
+    pp.figure('Original Psi')
     pp.clf()
     _,D = np.shape(alpha)
     for d in xrange(D):
-        pp.subplot(D,2,2*d+1)
+        pp.subplot(D,1,d+1)
         pp.plot(psi[:,:,d])
         pp.axis('tight')
         pp.title('psi')
-        pp.subplot(D,2,2*d+2)
-        pp.plot(alpha[:,d])
+    pp.draw()
+    pp.pause(1)    
+    pp.figure('Original Alpha')
+    pp.clf()
+    for d in xrange(D):        
+        pp.subplot(D,1,d+1)        
+        pp.stem(alpha[:,d])
         pp.axis('tight')
         pp.title('alpha')
-        pp.draw()
-        pp.pause(1)    
+    pp.draw()
+    pp.pause(1)    
 # Find the next power of 2
 def nextpow2(i):
     # do not use numpy here, math is much faster for single values
@@ -435,9 +448,10 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
     elif dataID==5:
         D = 2
         M = 32
-        beta =  5e-5
+        beta =  3e-4
         alpha,psi = fio.toyExample_medium_1d_multicomp()
     elif dataID==6:
+        M = 32
         alpha,psi = fio.toyExample_medium_3d_multicomp() 
     elif dataID==7:
         alpha,psi = fio.toyExample_large_3d_multicomp()    
@@ -463,8 +477,11 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         print 'beta = ', str(beta),'(beta*N*K = ',\
                     str(beta*len(X)*np.size(X,axis=1)),')'
         dispPlots(alpha_recon,psi_recon,X,'Final Result',p)
-        pp.pause(1)
-        pp.show()
+        
+        # Prepare results for publication
+        #pp.figure('publish')
+        #pp.pause(1)
+        #pp.show()
     return alpha_recon,psi_recon    
 ################################ Main Entrance ################################
 def main():

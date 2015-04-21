@@ -358,11 +358,14 @@ def toyExample_medium_1d_multicomp():
 def toyExample_medium_3d_multicomp():
     alpha = np.zeros((256,2))
     alpha[35,0] = 0.5
+    alpha[180,0] = 1
     alpha[140,0] = -0.5
     alpha[160,0] = 1
     alpha[220,0] = -1
-    alpha[50,1] = 0.5
+    alpha[50,1] = 1
+    alpha[75,1] = 0.5
     alpha[100,1] = -0.5
+    alpha[160,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,2))
