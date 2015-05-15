@@ -17,6 +17,7 @@ import fileio as fio
 import scipy.io as sio
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
+import matplotlib.cm as cm
 
 # TODO: change arguments to all lower case. Camelcase is difficult to remember
 class plotskeleton(object):
@@ -46,7 +47,8 @@ class plotskeleton(object):
         else:
             self.jointid2 = jointid2
         # x,y, z positions of all the 20 joints and corresponding names
-        self.x = data[:,2::3]
+        # x axis mirroring for display
+        self.x = data[:,2::3]*-1
         self.xhead = dataheader[2::3]
         self.y = data[:,3::3]
         self.yhead = dataheader[3::3]        
@@ -188,6 +190,131 @@ class plotskeleton(object):
 def plotSubSkeleton(data,dataheader,boneconnection,visibleJoints,jointid1=1,\
     jointid2=9,startendtime=[],skipframes=0):
     pass
+def skelNames(dataheader,boneconnection):
+    xhead = dataheader[2::3]
+    jointname = [str(item.split('_')[0]) for item in xhead]
+    # Names of the bones
+    bonename = [jointname[item1]+'_'+jointname[item2] \
+    for (item1,item2) in boneconnection]
+    return jointname,bonename
+    
+# Plot only a single frame on axis ax
+def plotsingleframe(ax,data,dataheader,boneconnection,azim,elev,boxon=True):
+    # x,y,z coordinates of the joints. x axis mirroring for display
+    x = data[:,2::3]*-1
+    y = data[:,3::3]
+    z = data[:,4::3]
+    # Names of elements of skeleton
+    jointname,bonename = skelNames(dataheader,boneconnection)
+    uj = list(set(jointname))
+    ub = list(set(bonename))
+    # draw each bone in a unique color
+    boneColorMap = cm.nipy_spectral(np.linspace(0,1,len(boneconnection)))
+    for idx,(start,end) in enumerate(boneconnection):
+        thisbonecolor = boneColorMap[ub.index(bonename[idx])]
+        ax.plot([x[0,start],x[0,end]],[z[0,start],z[0,end]],\
+        zs=[y[0,start],y[0,end]],linewidth=2,c=thisbonecolor)
+    # Draw each joint in a unique color
+    jointColorMap = cm.hsv(np.linspace(1,0,len(x.T)))
+    for idx,(x_,y_,z_) in enumerate(zip(x.T,y.T,z.T)):
+        thisjointcolor = jointColorMap[uj.index(jointname[idx])]
+        if jointname[idx]=='HEAD':
+            ax.scatter(x_,z_,y_,s=500,c=jointColorMap[6])
+        else:
+            ax.scatter(x_,z_,y_,s=30,c=thisjointcolor)
+    __setaxis__(ax,azim,elev,boxon)
+def __setaxis__(ax,azim,elev,boxon):
+    # Setting up view related parameters
+    ax.grid(False)
+    ax.tick_params(\
+        axis='both',
+        which='both',      # both major and minor ticks are affected
+        bottom='off',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        left='off',
+        right='off',
+        labelbottom='off',
+        labeltop='off',
+        labelleft='on',
+        labelright='off') # labels along the bottom edge are off   
+    ax.view_init(elev=elev, azim=azim)
+    ax.set_aspect(5)
+    plt.xlabel('azimuth = '+str(abs(azim)))
+    if not boxon:
+        ax.set_axis_off()
+# Plot Multiple frames on axis ax
+def plotmultiframe(ax,multidata,spacing,dataheader,boneconnection,azim,elev,boxon=True):
+    # x,y,z coordinates of the joints. x axis mirroring for display
+    for id,data in enumerate(multidata):
+        data=data[None]
+        x = data[:,2::3]*-1 + id*spacing
+        y = data[:,3::3]
+        z = data[:,4::3]
+        # Names of elements of skeleton
+        jointname,bonename = skelNames(dataheader,boneconnection)
+        uj = list(set(jointname))
+        ub = list(set(bonename))
+        # draw each bone in a unique color
+        boneColorMap = cm.nipy_spectral(np.linspace(0,1,len(boneconnection)))
+        for idx,(start,end) in enumerate(boneconnection):
+            thisbonecolor = boneColorMap[ub.index(bonename[idx])]
+            ax.plot([x[0,start],x[0,end]],[z[0,start],z[0,end]],\
+            zs=[y[0,start],y[0,end]],linewidth=2,c=thisbonecolor,alpha=(id+1.)/(len(multidata)+1))
+        # Draw each joint in a unique color
+        jointColorMap = cm.hsv(np.linspace(1,0,len(x.T)+1))
+        for idx,(x_,y_,z_) in enumerate(zip(x.T,y.T,z.T)):
+            thisjointcolor = jointColorMap[uj.index(jointname[idx])]
+            if jointname[idx]=='HEAD':
+                ax.scatter(x_,z_,y_,s=500,c=jointColorMap[6],alpha=(id+1.)/(len(multidata)+1))
+            else:
+                ax.scatter(x_,z_,y_,s=30,c=thisjointcolor,alpha=(id+1.)/(len(multidata)+1))
+    # Setting up view related parameters
+    __setaxis__(ax,azim,elev,boxon)
+# Plot Multiple frames on axis ax with Selective Bone Highlight feature
+def plotmultiframe_SBH(ax,multidata,spacing,dataheader,boneconnection,\
+    azim,elev,highlightedBones,boxon=True,zspacing=False):
+    # x,y,z coordinates of the joints. x axis mirroring for display
+    for id,data in enumerate(multidata):
+        data=data[None]
+        x = data[:,2::3]*-1 + id*spacing
+        y = data[:,3::3]
+        if zspacing:
+            z = data[:,4::3] + id*spacing*0.2
+        else:
+            z = data[:,4::3]
+        # Names of elements of skeleton
+        jointname,bonename = skelNames(dataheader,boneconnection)
+        uj = list(set(jointname))
+        ub = list(set(bonename))
+        # draw each bone in a unique color
+        boneColorMap = cm.bone(np.linspace(0,1,len(boneconnection)))
+        for idx,(start,end) in enumerate(boneconnection):
+            thisbonecolor = boneColorMap[ub.index(bonename[idx])]
+            if bonename[idx] in highlightedBones:
+                ax.plot([x[0,start],x[0,end]],[z[0,start],z[0,end]],\
+                zs=[y[0,start],y[0,end]],linewidth=2,c=thisbonecolor,alpha=1.0)
+            else:
+                ax.plot([x[0,start],x[0,end]],[z[0,start],z[0,end]],\
+                zs=[y[0,start],y[0,end]],linewidth=2,c=thisbonecolor,alpha=0.2)
+        # Draw each joint in a unique color
+        jointColorMap = cm.hsv(np.linspace(1,0,len(x.T)+1))
+        for idx,(x_,y_,z_) in enumerate(zip(x.T,y.T,z.T)):
+            thisjointcolor = jointColorMap[uj.index(jointname[idx])]
+            if jointname[idx]=='HEAD':
+                ax.scatter(x_,z_,y_,s=500,c=jointColorMap[6],alpha=0.2)
+            else:
+                ax.scatter(x_,z_,y_,s=30,c=thisjointcolor,alpha=0.2)
+    # Setting up view related parameters
+    __setaxis__(ax,azim,elev,boxon)        
+# Plot only a single frame on axis ax
+def plotsingleframe_multiangle(data,dataheader,boneconnection,azims,elev,\
+                                figurename='multiangle plot',boxon=True):
+    N = len(azims)+2
+    fig = plt.figure(figurename)
+    for i,angl in enumerate(azims):
+        ax = fig.add_axes([(i+1)*1./N,0,1./N,1], projection='3d')
+        plotsingleframe(ax,data,dataheader,boneconnection,angl,elev,boxon)
+    plt.show()
 
 # This function is used when there is no frame or timestamp associated with
 # the joint movement data. It constructs the animation data with the assumption
@@ -198,44 +325,34 @@ def plotJointsOnly(X,framerate=30,noShow=False):
     N,D = np.shape(X)
     framestep = 1000/framerate # milliseconds per frame    
     # Prepare data
-    dataheader=fio.splitdatafile(*fio.readdatafile('Data/test_Data.csv_test'))[1]
+    dataheader=fio.splitcsvfile(*fio.readdatafile('Data/test_Data.csv_test'))[1]
     boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
     data = np.zeros((N,D+2))
     data[:,2:] = X
     data[:,0] = range(N)
     data[:,1] = data[:,0]*framestep
-    
     if not noShow:
         # Plot skeleton
         gui = plotskeleton(data,dataheader,boneconnection)
         gui.show()
     else:
         return data
+############################## Test Modules ####################################        
 # Reads a file and plots it
 def unittest1():
-    data,dataheader=fio.splitdatafile(*fio.readdatafile('Data/20.1.csv'))[0:2]
+    data,dataheader=fio.splitcsvfile(*fio.readdatafile('Data/20.1.csv'))[0:2]
     boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
     a = plotskeleton(data,dataheader,boneconnection,jointid2=(9,10),\
         skipframes=5,startendtime=[5000,25000])
     a.show()
 # Visualizes the results
-def unittest2():
-    framerate = 30
-    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=5e-07_ALL_1.42487608664e+12.mat'
-    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=6e-07_ALL_1.42488503589e+12.mat'
-    filename = 'Results/top5_all_old/result_M=128_D=12_beta=8e-07_ALL_1.42487494026e+12.mat'
-    #filename = 'Results/top5_all_old/result_M=128_D=12_beta=1e-07_ALL_1.42486686357e+12.mat'
-    
-    #filename = 'Results/top5_all/result_M=128_D=12_beta=5e-07_ALL_1.42497420584e+12.mat'
-    #filename = 'Results/top5_all/result_M=128_D=12_beta=4e-07_ALL_1.42497759288e+12.mat'
-    #filename = 'Results/top5_all/result_M=128_D=12_beta=4.5e-07_ALL_1.42497429898e+12.mat'
-    
+def unittest2(filename):
+    framerate = 6
     # Read result file
     allData = sio.loadmat(filename)
     # Print nonzero component indices
     sumAlpha = np.sum(allData['alpha_recon'],axis=0)
     validIdx = np.nonzero(sumAlpha)
-    
     while True:
         print 'Available nonzero components are:'
         for ind in validIdx:
@@ -246,7 +363,6 @@ def unittest2():
     #        print '{:0.2}'.format(sumAlpha),
     #    print
         component = input('which component do you want to see?')
-        
         # Visualize
         plt.clf()
         plt.plot(allData['alpha_recon'][:,component])
@@ -256,6 +372,65 @@ def unittest2():
         X = allData['psi_recon'][:,:,component]
         plotJointsOnly(X,framerate)
         plt.clf()
-
+# Load mean skeleton and draw publishable plot from three different angles
+def unittest3(meanfile,boxon1=True):
+    data = sio.loadmat(meanfile)
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    plotsingleframe_multiangle(data['avgSkel'],data['header'],boneconnection,\
+            azims=[-45,-90,-135],elev=5,figurename='Average Pose',boxon=boxon1)
+# Load a component from the result and draw publishable plot illustrating
+# the action
+def unittest4(filename, actionidx):
+    allData = sio.loadmat(filename)
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    header = [str(head.strip()) for head in allData['Header']]
+    data = fio.calcinvarient(plotJointsOnly(allData['psi_recon'][:,:,actionidx],\
+    framerate=30/allData['decimateratio'],noShow=True),header)
+    N = len(data)
+    fig = plt.figure('Action')
+    fig.set_facecolor('white')
+    for i,adata in enumerate(data):
+        ax = fig.add_axes([i*1./N,0,1./N,1], projection='3d')
+        plotsingleframe(ax,adata[None],allData['Header'],boneconnection,-90,5,False)
+    plt.show()
+# Load a component from the result and draw publishable plot illustrating
+# the action. In another format    
+def unittest5(filename, actionidx):
+    allData = sio.loadmat(filename)
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    header = [str(head.strip()) for head in allData['Header']]
+    data = fio.calcinvarient(plotJointsOnly(allData['psi_recon'][:,:,actionidx],\
+    framerate=30/allData['decimateratio'],noShow=True),header)
+    fig = plt.figure('Action')
+    ax = fig.add_subplot(111, projection='3d')
+    plotmultiframe(ax,data,4,allData['Header'],boneconnection,-100,5,False)
+    plt.show()
+# Load a component from the result and draw publishable plot illustrating
+# the action. Utilize bone highlight feature
+def unittest6(filename, actionidx,azim,elev,highlightedBones=[\
+    'SHOULDER_ELBOW','ELBOW_WRIST','WRIST_HAND'],space=4,boxon=False,zspacing=False):
+    allData = sio.loadmat(filename)
+    boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
+    header = [str(head.strip()) for head in allData['Header']]
+    data = fio.calcinvarient(plotJointsOnly(allData['psi_recon'][:,:,actionidx],\
+    framerate=30/allData['decimateratio'],noShow=True),header)
+    fig = plt.figure('Action')
+    ax = fig.add_subplot(111, projection='3d')
+    plotmultiframe_SBH(ax,data,space,allData['Header'],boneconnection,azim,\
+    elev,highlightedBones,boxon,zspacing)
+    plt.show()    
 if __name__ == '__main__':
-    unittest2()
+    #unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
+    #unittest3('Data/meanSkel.mat',True)    
+    #unittest4('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
+    #unittest5('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
+    unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1,-97,5)
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',3,-90,25)    
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
+    #5,-85,-160,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'],space=10,zspacing = False)    
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
+    #7,94,178,space=8,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT','SHOULDER_ELBOW','ELBOW_WRIST'],boxon=False)
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
+    #8,-85,-158,space=4)
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
+    #11,87,2,space=3,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'],boxon=False)
