@@ -1,9 +1,13 @@
 ''' File Input-Output Module
     ========================
+    This module reads, preprocess and saves the skeleton animation data (saved
+    in csv format) as convenient .mat format which can be fed into analyze
+    module. It contains number of convenience functions for file handling.
+    
     Functions starting with the prefix "toyExample" are sample datasets
     created for testing while writing various sections of the code.
     Other functions are created to load and preprocess the original dataset.
-#################################### FILE IO ##################################
+
 Note 1: Data Formats
 ....................
 1) csvData: it is the exact data from the CSV file
@@ -13,16 +17,23 @@ Note 1: Data Formats
       a joint. It is not defined which column represents which joint. 
       However, the columns are placed in a nondecreasing order of jointID
 
-Note 2: Order of Data flow
+Note 2: mat file format
+.......................
+The output mat file (which is input to analyze.py module) is saved in
+two different styles. 'concat' style concatenates all the data in a big time
+series data. On the other hand, 'separate' style keeps the data separate.
+
+Note 3: Order of Data flow
 ..........................
 readskeletaltree
 readallfiles_concat
+readallfiles_separate
 writeAll
 readdatafile            --> (csvData output)
 |    subsample          --> (csvData output) [call before clean]
 |    clean              --> (csvData output)
 |    calcinvarient      --> (csvData output) [call after clean]
-|    splitdatafile      --> (data output)
+|    splitcsvfile      --> (data output)
 |    |    pad           --> (data output)
 |    |    vcat          --> (data output)
 |    |    getjointdata  --> (X output)
@@ -41,6 +52,7 @@ import os
 import skeletonPlotter as sp
 import scipy.io as sio
 import scipy.signal as sg
+############################## Convenience ####################################
 # TODO: change arguments to all lower case
 # Read the Skeletal tree file
 def readskeletaltree(treeFilename):
@@ -104,7 +116,7 @@ def calcinvarient(csvdata,header):
     and x.find('Orientation')==-1]
     alljoint_z = [idx for idx,x in enumerate(header) if (x.endswith('z'))\
     and x.find('Orientation')==-1]
-    
+    # Reference    
     spine=header.index('SPINE_x')
     shldr=header.index('SHOULDER_CENTER_x')
     # The spine is the origin. subtract the coordinate of spine from the 
@@ -127,7 +139,7 @@ def calcinvarient(csvdata,header):
 # data, data_header, Orientation, Orien_Head, ScreenXY, ScreenXY_header
 # The contents of the animation data file should be read using the function
 # readdatafile. Output of this function can be fed directly to this function
-def splitdatafile(csvData,header):
+def splitcsvfile(csvData,header):
     # Read indices
     scnIdx=[i for i,x in enumerate(header) if x == 'ScreenX' or x == 'ScreenY']
     orientIdx = range(scnIdx[-1]+1,len(header))
@@ -174,7 +186,7 @@ def vcat(dat1,dat2):
     dat2[:,:2]+=dat1[-1,:2]
     return np.concatenate((dat1[:-1,:],dat2),axis=0)
 
-## Reads all the skeleton tracking file in a folder.
+## Reads all the skeleton tracking file in a folder and concatenates into one.
 # This function subsamples and cleans the data before concatenating into a
 # giant time series
 def readallfiles_concat(startPath,suffix,decimateratio,invariant=True,\
@@ -204,27 +216,77 @@ def readallfiles_concat(startPath,suffix,decimateratio,invariant=True,\
                 else:
                     boundDic[fullPath]=(len(allData),len(allData)+datLen)                    
                     allData = vcat(allData,dat)
-        return allData,boundDic,header
+    return allData,boundDic,header
+
+## Reads all the skeleton tracking file in a folder and concatenates into one.
+# This function subsamples and cleans the data before concatenating into a
+# giant time series
+def readallfiles_separate(startPath,suffix,decimateratio,invariant=True,\
+                                            nPad=150,nSecBegin=5,nSecEnd=5):
+    csvDataList = []
+    filenamelist = []
+    for root,folder,files in os.walk(startPath):
+        for afile in files:
+            if afile.lower().endswith(suffix.lower()):
+                # create full filename and print
+                fullPath = os.path.join(root,afile)
+                print fullPath
+                # Read file. 
+                csvdat,header = readdatafile(fullPath)                
+                # Clean and pad with zeros
+                csvdat = clean(subsample(csvdat,header,decimateratio)\
+                                                        ,nSecBegin,nSecEnd)[0]
+                if invariant:
+                    csvdat = calcinvarient(csvdat,header)
+                csvDataList.append(csvdat)
+                filenamelist.append(fullPath)
+    return csvDataList,filenamelist,header
 
 # Writes all the data as input mat file. style can take either 'concat' or
-# 'separate'. 
-def writeAll(outfilename,style,inputpath='Data/',suffix='.csv',decimateRatio=5,
-             invariant=True,nPad=150,nSecBegin=5,nSecEnd=5):
+# 'separate'. Before writing, this function subtracts the mean
+def writeAll(outfilename,style,inputpath='Data/',\
+    meanfile = 'Data/meanSkel.mat',decimateRatio=5):
     assert style=='concat' or style=='separate'
+    meandata = sio.loadmat(meanfile)
+
     if style == 'concat':
         # Read all the files and split
-        csvDat,boundDic,header = readallfiles_concat(inputpath,suffix,\
-                        decimateRatio,invariant,nPad,nSecBegin,nSecEnd)
-        data,dataHead = splitdatafile(csvDat,header)[:2]
+        csvDat,boundDic,header = readallfiles_concat(inputpath,'.csv',\
+                        decimateRatio,True)
+        data,dataHead = splitcsvfile(csvDat,header)[:2]
+        #Subtract mean
+        data = data - meandata['avgSkel']
         # Save the data in matlab format
         sio.matlab.savemat(outfilename,\
         {'csvDat':csvDat,'header':header,'data':data,'dataHead':dataHead,\
-        'decimateratio':decimateRatio,'invariant':invariant,'nPad':nPad,\
-        'nSecBegin':nSecBegin,'nSecEnd':nSecEnd})
+        'decimateratio':decimateRatio,'invariant':True,'nPad':150,\
+        'nSecBegin':5,'nSecEnd':5,'style':style})
         sio.matlab.savemat(outfilename+'_bound.mat',boundDic)
         print 'Data Saved'
+    else:
+        csvlist,filenamelist,header = readallfiles_separate(inputpath,'.csv',\
+                        decimateRatio,True)
+        datDic={}
+        data=[]
+        for i,csvDat in enumerate(csvlist):
+            datDic['csvDat_'+str(i)]=csvDat
+            datDic['data_'+str(i)]=splitcsvfile(csvDat,header)[0]
+            data.append(datDic['data_'+str(i)])
+        dataHead = splitcsvfile(csvDat,header)[1]
+        datDic['header']=header
+        datDic['filenamelist']=filenamelist
+        datDic['dataHead']=dataHead
+        datDic['decimateratio']=decimateRatio
+        datDic['invariant']=True
+        datDic['nSecBegin']=5
+        datDic['nSecEnd']=5
+        datDic['style']=style
+        # Save the data in matlab format
+        sio.matlab.savemat(outfilename,datDic)
+        print 'Data Saved'
     return data,dataHead
-
+    
+############################## Toy dataset ####################################
 # Generate and return a toy data
 def toyExample_medium():
     alpha = np.zeros((256,1))
@@ -278,27 +340,33 @@ def toyExample_medium_1d():
 # Generate and return a toy data
 def toyExample_medium_1d_multicomp():
     alpha = np.zeros((256,2))
-    alpha[35,0] = 0.5
-    alpha[140,0] = -0.5
-    alpha[160,0] = 1
-    alpha[220,0] = -1
-    alpha[50,1] = 0.5
-    alpha[100,1] = -0.5
+    alpha[30,0] = 0.5
+    alpha[100,0] = 1
+    alpha[125,0] = 1
+    alpha[175,0] = 1
+    alpha[230,0] = -1
+    alpha[50,1] = -0.5
+    alpha[100,1] = 1
+    alpha[150,1] = -1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),1,2))
-    psi[:,0,0] = np.sin(xVal)
+    psi[:,0,0] = np.cos(xVal/2.0)
     psi[:,0,1] = np.pi - np.abs(xVal)
+    #psi[:,0,2] = np.greater_equal(np.pi/2.,np.abs(xVal))
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_3d_multicomp():
     alpha = np.zeros((256,2))
     alpha[35,0] = 0.5
+    alpha[180,0] = 1
     alpha[140,0] = -0.5
     alpha[160,0] = 1
     alpha[220,0] = -1
-    alpha[50,1] = 0.5
+    alpha[50,1] = 1
+    alpha[75,1] = 0.5
     alpha[100,1] = -0.5
+    alpha[160,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,2))
@@ -309,6 +377,28 @@ def toyExample_medium_3d_multicomp():
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+# Generate and return a toy data
+def toyExample_orthogonal_3d_multicomp():
+    alpha = np.zeros((256,2))
+    alpha[35,0] = 0.5
+    alpha[180,0] = 1
+    alpha[140,0] = -0.5
+    alpha[160,0] = 1
+    alpha[220,0] = -1
+    alpha[50,1] = 1
+    alpha[75,1] = 0.5
+    alpha[100,1] = -0.5
+    alpha[160,1] = 1
+    alpha[200,1] = 1
+    xVal = np.linspace(-1,1,32)*np.pi
+    psi = np.zeros((len(xVal),3,2))
+    psi[:,0,0] = 0.5*np.sin(4*xVal) - np.sin(xVal)
+    psi[:,1,0] = 0.5*np.sin(4*(xVal+np.pi/6)) - np.sin(xVal+np.pi/6)
+    psi[:,2,0] = 0.5*np.sin(4*(xVal+np.pi/4)) - np.sin(xVal+np.pi/4)
+    psi[:,0,1] = np.sin(xVal)
+    psi[:,1,1] = np.sin(xVal+np.pi/6)
+    psi[:,2,1] = np.sin(xVal+np.pi/4)
+    return alpha,psi    
 # Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
@@ -323,15 +413,20 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
-############################## End File IO ####################################
+############################## Test Modules ####################################
 # Read, subsample, clean and concatenate all the data and save as mat file
-def unitTest1(decimateRatio=5):
+def unitTest1(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
     bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
-    data,dataHead = writeAll('Data/top8_inv_subsampled_skeletal_Data.mat',\
-    'concat',invariant=True)
+    data,dataHead = writeAll(outfilename,'concat','Data/',\
+    'Data/meanSkel.mat',5)
     #Animate data
     gui = sp.plotskeleton(data,dataHead,bones,skipframes=0)
     gui.show()
+# Read, subsample, clean all the data but keep them separate
+def unitTest1_sep(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
+    data,dataHead = writeAll(outfilename,'separate','Data/',\
+    'Data/meanSkel.mat',5)
+    pass
 # load matfile -- test of getjointdata (returns the x,y,z columns for the
 #    specified joint locations only). Not particularly useful
 def unitTest2():
@@ -341,11 +436,13 @@ def unitTest2():
     joints['ELBOW_RIGHT'],joints['WRIST_RIGHT'],joints['HAND_RIGHT']),\
     allData['dataHead'])
     print np.shape(X)
+    pass
 # Animate/Plot cleaned and invariant data
 def unitTest3():
     bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
     csvDat,header = readdatafile('Data/20.2.csv')
-    dat,datHead = splitdatafile(calcinvarient(clean(csvDat)[0],header))[:2]
+    dat,datHead = splitcsvfile(calcinvarient(clean(csvDat)[0],header),\
+                                                            header)[:2]
     gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
     gui.show()
 # Animate/Plot subsampled, cleaned, and invariant data
@@ -353,10 +450,54 @@ def unitTest4():
     bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
     csvDat,header = readdatafile('Data/20.2.csv')
     # Subsample by a ratio of 5, clean and split the data
-    dat,datHead = splitdatafile(calcinvarient(clean(subsample(csvDat,\
-                                            header,5))[0],header))[:2]    
+    dat,datHead = splitcsvfile(calcinvarient(clean(subsample(csvDat,\
+                                            header,5))[0],header),header)[:2]    
     gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
     gui.show()
+# Calculate the average pose from the whole dataset    
+def unitTest5():
+    csvlist,filenamelist,header = readallfiles_separate('Data/',\
+    suffix='.csv',decimateratio=5,invariant=True)
+    firsttime=True
+    count=0.
+    # to remove the weight of each video length, we calculate the average of
+    # the average
+    for acsv in csvlist:
+        data = splitcsvfile(acsv,header)[0]
+        if firsttime:
+            firsttime=False            
+            sumdat = np.sum(data,axis=0)
+        else:
+            sumdat = sumdat + np.sum(data,axis=0)
+        count+=len(data)
+    avgSkel = sumdat/count
+    avgSkel[0:2]=0
+    header = splitcsvfile(acsv,header)[1]
+    sio.savemat('Data/meanSkel.mat',{'avgSkel':avgSkel,'header':header})
+    print 'done'
+# Calculate per person average
+def unitTest6():
+    csvlist,filenamelist,csvheader = readallfiles_separate('Data/',\
+                    suffix='.csv',decimateratio=5,invariant=True)
+    oldperid = int(filenamelist[0][-8:-6])
+    sumdat=0
+    count=0
+    for id,acsv in enumerate(csvlist):
+        data,header = splitcsvfile(acsv,csvheader)[:2]
+        perid = int(filenamelist[id][-8:-6])
+        if not (oldperid == perid):
+            avgSkel = sumdat/count
+            avgSkel[0:2]=0    
+            sio.savemat('Data/meanSkel_'+str(oldperid)+'.mat',\
+                        {'avgSkel':avgSkel,'header':header})
+            oldperid=perid
+            sumdat=0
+            count=0
+        else:
+            sumdat = sumdat + np.sum(data,axis=0)
+            count = count + len(data)
+    print 'done'    
 
 if __name__ == '__main__':
     unitTest1()
+    #unitTest5()
