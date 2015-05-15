@@ -93,6 +93,110 @@ def dispOriginal(alpha,psi):
         pp.title('alpha')
     pp.draw()
     pp.pause(1)    
+    
+def publishFig(alpha,psi,alpha_recon,psi_recon,X):
+    # Prepare results for publication
+    pp.figure('Publishable Figure')
+    pp.locator_params(axis = 'y', nbins = 5)
+    pp.subplot2grid((9,4),(0,0),colspan=2,rowspan=2)
+    pp.plot(psi[:,:,0])
+    pp.axis('tight')
+    pp.subplots_adjust(hspace=0.55,wspace=0.35)
+    pp.title('Original psi_0')
+    pp.subplot2grid((9,4),(0,2),colspan=2,rowspan=2)
+    pp.plot(psi[:,:,1])
+    pp.axis('tight')
+    pp.title('Original psi_1')
+    pp.subplot2grid((9,4),(2,0),colspan=5,rowspan=1)
+    pp.stem(alpha[:,0],markerfmt='.')
+    pp.axis('tight')
+    pp.title('Original alpha_0')
+    pp.tick_params(\
+        axis='both',
+        which='both',      # both major and minor ticks are affected
+        bottom='off',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        left='on',
+        right='off',
+        labelbottom='off',
+        labeltop='off',
+        labelleft='on',
+        labelright='off')
+    pp.ylim(np.min(alpha),np.max(alpha))
+    pp.subplot2grid((9,4),(3,0),colspan=5,rowspan=1)
+    pp.stem(alpha[:,1],markerfmt='.')
+    pp.axis('tight')
+    pp.title('Original alpha_1')
+    pp.tick_params(\
+        axis='both',
+        which='both',      # both major and minor ticks are affected
+        bottom='off',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        left='on',
+        right='off',
+        labelbottom='off',
+        labeltop='off',
+        labelleft='on',
+        labelright='off')
+    pp.ylim(np.min(alpha),np.max(alpha))
+    pp.subplot2grid((9,4),(4,0),colspan=5,rowspan=1)
+    pp.plot(X)
+    pp.axis('tight')
+    pp.title('Input Signal')
+    pp.tick_params(\
+        axis='both',
+        which='both',      # both major and minor ticks are affected
+        bottom='off',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        left='on',
+        right='off',
+        labelbottom='off',
+        labeltop='off',
+        labelleft='on',
+        labelright='off')
+    pp.subplot2grid((9,4),(5,0),colspan=5,rowspan=1)
+    pp.stem(alpha_recon[:,0],markerfmt='.')
+    pp.axis('tight')
+    pp.title('Reconstructed alpha_0')
+    pp.tick_params(\
+        axis='both',
+        which='both',      # both major and minor ticks are affected
+        bottom='off',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        left='on',
+        right='off',
+        labelbottom='off',
+        labeltop='off',
+        labelleft='on',
+        labelright='off')
+    pp.ylim(np.min(alpha_recon),np.max(alpha_recon))
+    pp.subplot2grid((9,4),(6,0),colspan=5,rowspan=1)
+    pp.stem(alpha_recon[:,1],markerfmt='.')
+    pp.axis('tight')
+    pp.title('Reconstructed alpha_1')
+    pp.tick_params(\
+        axis='both',
+        which='both',      # both major and minor ticks are affected
+        bottom='on',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        left='on',
+        right='off',
+        labelbottom='on',
+        labeltop='off',
+        labelleft='on',
+        labelright='off')
+    pp.ylim(np.min(alpha_recon),np.max(alpha_recon))
+    pp.subplot2grid((9,4),(7,0),colspan=2,rowspan=2)
+    pp.plot(psi_recon[:,:,0])
+    pp.axis('tight')
+    pp.title('Reconstructed psi_0')
+    pp.subplot2grid((9,4),(7,2),colspan=2,rowspan=2)
+    pp.plot(psi_recon[:,:,1])
+    pp.axis('tight')
+    pp.title('Reconstructed psi_1')
+
+    pp.pause(1)
+    pp.show()
 # Find the next power of 2
 def nextpow2(i):
     # do not use numpy here, math is much faster for single values
@@ -316,7 +420,7 @@ def csc_pgd(X,X_mean,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
             'iterTime','{:.2e}'.format(time.time() - itStartTime)
                 
         # terminate loop
-        allowZero_number = 8
+        allowZero_number = 10
         if (delta<thresh) or np.isnan(delta):
             if (delta<thresh or np.isnan(delta))and countZero<allowZero_number:
                 countZero += 1
@@ -352,7 +456,7 @@ def buildArg():
     (default: %(default)s)')
 
     args.add_argument('-toy',nargs='?',type=int,\
-    choices=range(1,8),metavar='TOY_DATA_ID',\
+    choices=range(1,9),metavar='TOY_DATA_ID',\
     help='This will override the INPUT_MAT_FILENAME with synthetic toy data.\
     The ID refers different preset synthetic data. \
     Must be chosen from the following: %(choices)s')    
@@ -387,7 +491,7 @@ def buildArg():
     metavar='ITERATION_THRESHOLD',\
     help='Threshold of iteration (termination criteria) (default:%(default)s)')
     
-    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-5,\
+    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-6,\
     metavar='DIFFERENCE_THRESHOLD',\
     help='Threshold of difference in log objective function\
     (termination criteria) (default:%(default)s)')
@@ -415,6 +519,10 @@ def buildArg():
     default=False,help='Turns on displays relevant for Toy data.\
     Shows Original Data + Final Results. It is not applicable for data input\
     from mat. Does not slow down much.')
+    
+    args.add_argument('--PubFig',dest='Pubfig', action='store_true',\
+    default=False,help='Turns on publishable figure for 2 component toy data.\
+    (e.g. -toy 5 or -toy 6 etc.) Effect is undefined for any other case')
         
     args.add_argument('--DispObj',dest='Disp_Obj', action='store_true',\
     default=False,help='Turns on log of objective function plot. Hugely slows\
@@ -430,7 +538,7 @@ def buildArg():
     return args
 ################################## Unit Test ##################################
 def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
-                                            dispIteration=False,totWorker=4):
+            dispIteration=False,totWorker=4,publishableFigure=False):
     #======================================================
 #   Synthetic Toy Data
     if dataID==1:
@@ -452,9 +560,14 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         alpha,psi = fio.toyExample_medium_1d_multicomp()
     elif dataID==6:
         M = 32
+        beta = 8e-5
         alpha,psi = fio.toyExample_medium_3d_multicomp() 
     elif dataID==7:
-        alpha,psi = fio.toyExample_large_3d_multicomp()    
+        alpha,psi = fio.toyExample_large_3d_multicomp()
+    elif dataID==8:
+        M = 32
+        beta = 8e-5
+        alpha,psi = fio.toyExample_orthogonal_3d_multicomp()
     p = Pool(totWorker)
     # Construct the data            
     X = recon(alpha,projectPsi(psi,1.0),p)
@@ -464,7 +577,7 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
-    X_mean = np.zeros(np.shape(X))
+    X_mean = np.zeros_like(X)
     alpha_recon,psi_recon = csc_pgd(X,X_mean,M,D,beta,dispObj=dispObj,\
                     dispGrad=dispGrad,dispIteration=dispIteration)[:2]
     # Display the reconstructed values
@@ -477,11 +590,11 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         print 'beta = ', str(beta),'(beta*N*K = ',\
                     str(beta*len(X)*np.size(X,axis=1)),')'
         dispPlots(alpha_recon,psi_recon,X,'Final Result',p)
-        
-        # Prepare results for publication
-        #pp.figure('publish')
-        #pp.pause(1)
-        #pp.show()
+        pp.pause(1)
+        pp.show()
+
+    if publishableFigure:        
+        publishFig(alpha,psi,alpha_recon,psi_recon,X);
     return alpha_recon,psi_recon    
 ################################ Main Entrance ################################
 def main():
@@ -493,7 +606,8 @@ def main():
     if not args.toy == None:
         alpha_recon,psi_recon = toyTest(args.toy,D=2,M=64,beta=args.Beta,\
             disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
-            dispIteration=args.Disp_Iterations,totWorker=args.p)
+            dispIteration=args.Disp_Iterations,totWorker=args.p,\
+            publishableFigure=args.Pubfig)
         return
         
     # In case of real data, load the input file

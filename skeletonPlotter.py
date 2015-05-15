@@ -272,13 +272,16 @@ def plotmultiframe(ax,multidata,spacing,dataheader,boneconnection,azim,elev,boxo
     __setaxis__(ax,azim,elev,boxon)
 # Plot Multiple frames on axis ax with Selective Bone Highlight feature
 def plotmultiframe_SBH(ax,multidata,spacing,dataheader,boneconnection,\
-    azim,elev,highlightedBones,boxon=True):
+    azim,elev,highlightedBones,boxon=True,zspacing=False):
     # x,y,z coordinates of the joints. x axis mirroring for display
     for id,data in enumerate(multidata):
         data=data[None]
         x = data[:,2::3]*-1 + id*spacing
         y = data[:,3::3]
-        z = data[:,4::3]
+        if zspacing:
+            z = data[:,4::3] + id*spacing*0.2
+        else:
+            z = data[:,4::3]
         # Names of elements of skeleton
         jointname,bonename = skelNames(dataheader,boneconnection)
         uj = list(set(jointname))
@@ -405,7 +408,7 @@ def unittest5(filename, actionidx):
 # Load a component from the result and draw publishable plot illustrating
 # the action. Utilize bone highlight feature
 def unittest6(filename, actionidx,azim,elev,highlightedBones=[\
-    'SHOULDER_ELBOW','ELBOW_WRIST','WRIST_HAND'],space=4,boxon=False):
+    'SHOULDER_ELBOW','ELBOW_WRIST','WRIST_HAND'],space=4,boxon=False,zspacing=False):
     allData = sio.loadmat(filename)
     boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
     header = [str(head.strip()) for head in allData['Header']]
@@ -414,18 +417,20 @@ def unittest6(filename, actionidx,azim,elev,highlightedBones=[\
     fig = plt.figure('Action')
     ax = fig.add_subplot(111, projection='3d')
     plotmultiframe_SBH(ax,data,space,allData['Header'],boneconnection,azim,\
-    elev,highlightedBones,boxon)
+    elev,highlightedBones,boxon,zspacing)
     plt.show()    
 if __name__ == '__main__':
-    unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
+    #unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
     #unittest3('Data/meanSkel.mat',True)    
     #unittest4('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest5('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
-    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1,-97,5)
+    unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1,-97,5)
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',3,-90,25)    
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
-    #5,-85,-160,space=6,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'])    
+    #5,-85,-160,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'],space=10,zspacing = False)    
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
-    #7,108,172,space=8,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'],boxon=True)
+    #7,94,178,space=8,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT','SHOULDER_ELBOW','ELBOW_WRIST'],boxon=False)
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
     #8,-85,-158,space=4)
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
+    #11,87,2,space=3,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'],boxon=False)

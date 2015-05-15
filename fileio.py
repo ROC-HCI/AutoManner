@@ -247,7 +247,7 @@ def readallfiles_separate(startPath,suffix,decimateratio,invariant=True,\
 def writeAll(outfilename,style,inputpath='Data/',\
     meanfile = 'Data/meanSkel.mat',decimateRatio=5):
     assert style=='concat' or style=='separate'
-    meandata = sio.loadmat(meanfile)
+    #meandata = sio.loadmat(meanfile)
 
     if style == 'concat':
         # Read all the files and split
@@ -255,7 +255,7 @@ def writeAll(outfilename,style,inputpath='Data/',\
                         decimateRatio,True)
         data,dataHead = splitcsvfile(csvDat,header)[:2]
         #Subtract mean
-        data = data - meandata['avgSkel']
+        #data = data - meandata['avgSkel']
         # Save the data in matlab format
         sio.matlab.savemat(outfilename,\
         {'csvDat':csvDat,'header':header,'data':data,'dataHead':dataHead,\
@@ -376,6 +376,28 @@ def toyExample_medium_3d_multicomp():
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+# Generate and return a toy data
+def toyExample_orthogonal_3d_multicomp():
+    alpha = np.zeros((256,2))
+    alpha[35,0] = 0.5
+    alpha[180,0] = 1
+    alpha[140,0] = -0.5
+    alpha[160,0] = 1
+    alpha[220,0] = -1
+    alpha[50,1] = 1
+    alpha[75,1] = 0.5
+    alpha[100,1] = -0.5
+    alpha[160,1] = 1
+    alpha[200,1] = 1
+    xVal = np.linspace(-1,1,32)*np.pi
+    psi = np.zeros((len(xVal),3,2))
+    psi[:,0,0] = 0.5*np.sin(4*xVal) - np.sin(xVal)
+    psi[:,1,0] = 0.5*np.sin(4*(xVal+np.pi/6)) - np.sin(xVal+np.pi/6)
+    psi[:,2,0] = 0.5*np.sin(4*(xVal+np.pi/4)) - np.sin(xVal+np.pi/4)
+    psi[:,0,1] = np.sin(xVal)
+    psi[:,1,1] = np.sin(xVal+np.pi/6)
+    psi[:,2,1] = np.sin(xVal+np.pi/4)
+    return alpha,psi    
 # Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
