@@ -247,7 +247,7 @@ def readallfiles_separate(startPath,suffix,decimateratio,invariant=True,\
 def writeAll(outfilename,style,inputpath='Data/',\
     meanfile = 'Data/meanSkel.mat',decimateRatio=5):
     assert style=='concat' or style=='separate'
-    #meandata = sio.loadmat(meanfile)
+    meandata = sio.loadmat(meanfile)
 
     if style == 'concat':
         # Read all the files and split
@@ -255,7 +255,7 @@ def writeAll(outfilename,style,inputpath='Data/',\
                         decimateRatio,True)
         data,dataHead = splitcsvfile(csvDat,header)[:2]
         #Subtract mean
-        #data = data - meandata['avgSkel']
+        data = data - meandata['avgSkel']
         # Save the data in matlab format
         sio.matlab.savemat(outfilename,\
         {'csvDat':csvDat,'header':header,'data':data,'dataHead':dataHead,\
@@ -285,6 +285,7 @@ def writeAll(outfilename,style,inputpath='Data/',\
         sio.matlab.savemat(outfilename,datDic)
         print 'Data Saved'
     return data,dataHead
+    
 ############################## Toy dataset ####################################
 # Generate and return a toy data
 def toyExample_medium():
