@@ -342,23 +342,6 @@ def buildArg():
     'Data/KinectSkeleton.tree',metavar='SKELETON_TREE_FILENAME',\
     help='A .tree file containing kinect skeleton tree (default: %(default)s)')
 
-    args.add_argument('-j',nargs='*',\
-    default=['ALL'],\
-    choices=['NONE','ALL','HIP_CENTER','SPINE','SHOULDER_CENTER','HEAD',\
-    'SHOULDER_LEFT','ELBOW_LEFT','WRIST_LEFT','HAND_LEFT',\
-    'SHOULDER_RIGHT','ELBOW_RIGHT','WRIST_RIGHT','HAND_RIGHT',\
-    'HIP_LEFT','KNEE_LEFT','ANKLE_LEFT','FOOT_LEFT','HIP_RIGHT',\
-    'KNEE_RIGHT','ANKLE_RIGHT','FOOT_RIGHT'],\
-    metavar='JOINTS_TO_CONSIDER',\
-    help='A list of joint names for which the analysis will\
-    be performed. If NONE is selected, the joint selection will not be\
-    performed; all the columns in the data variable from the mat file will\
-    directly put to the optimizer. If you chose NONE, please alse choose an\
-    appropriate value for -M. Otherwise, it will be automatically set to 2.\
-    Note: joint selection is not applicable\
-    for toy data. (default: %(default)s). Must be chosen from the following:\
-    %(choices)s',required=False)
-
     args.add_argument('-iter_thresh',nargs='?',type=int,default=65536,\
     metavar='ITERATION_THRESHOLD',\
     help='Threshold of iteration (termination criteria) (default:%(default)s)')
@@ -407,7 +390,6 @@ def buildArg():
 ################################## Unit Test ##################################
 def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
                                             dispIteration=False,totWorker=4):
-    #======================================================
 #   Synthetic Toy Data
     if dataID==1:
         D=1
@@ -455,36 +437,33 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
 def main():
     # Handle arguments
     parser = buildArg()
-    args = parser.parse_args()    
+    args = parser.parse_args()
+    
+    # Handle the toy data
     if not args.toy == None:
         alpha_recon,psi_recon = toyTest(args.toy,D=2,M=64,beta=args.Beta,\
             disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
             dispIteration=args.Disp_Iterations,totWorker=args.p)
         return
-#    # Load from input data file
+
+    # Work with real data
     allData = sio.loadmat(args.i)
-    # Choose the joints according to arguments
-    if 'NONE' in args.j:
-        X = allData['data']
-        args.M = M.fabs(args.M)
-    elif 'ALL' in args.j:
-        X = fio.getjointdata(allData['data'],range(20))
-    else:
-        joints,bones = fio.readskeletaltree(args.skelTree)
-        jointList = [joints[jName] for jName in args.j]
-        X = fio.getjointdata(allData['data'],jointList)    
+    X = fio.getjointdata(allData['data'],range(20))
+    
     # Choose the correct length of psi if M is negative
     if args.M<0:
         args.M = nextpow2(np.argmax(allData['data'][:,0]>30*M.fabs(args.M)))
-    # Pad the data to make it appropriate size
+
+    # Pad the data to make it power of two and then 
+    # apply Convolutional Sparse Coding
     numZeros = (nextpow2(len(X))-len(X))
-    X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)    
-    # Apply Convolutional Sparse Coding
+    X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
     alpha_recon,psi_recon,logObj,reconError,L0 = csc_pgd(X,M=args.M,\
     D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
     dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
     totWorker=args.p)
+    
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
         str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
@@ -494,7 +473,8 @@ def main():
     'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j,'Header':\
     allData['dataHead'],'timeData':allData['data'][:,0:2],\
     'decimateratio':allData['decimateratio']})
-    print    
+    
+    
     print 'Done!'    
     
 if __name__ == '__main__':

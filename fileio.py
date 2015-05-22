@@ -105,7 +105,6 @@ def clean(csvData,nSecBegin = 5,nSecEnd = 5):
     csvData[:,:2] = csvData[:,:2] - csvData[0,:2]
     return csvData,cropBoundStart,cropBoundEnd
 
-# TODO: Rotational invariance
 # Calculates invarient feature by translating the origin in the body
 # It only works on joint coordinates
 def calcinvarient(csvdata,header):
@@ -116,7 +115,8 @@ def calcinvarient(csvdata,header):
     and x.find('Orientation')==-1]
     alljoint_z = [idx for idx,x in enumerate(header) if (x.endswith('z'))\
     and x.find('Orientation')==-1]
-    # Reference    
+    
+    # Reference
     spine=header.index('SPINE_x')
     shldr=header.index('SHOULDER_CENTER_x')
     # The spine is the origin. subtract the coordinate of spine from the 
@@ -499,5 +499,5 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest1()
+    unitTest1_sep()
     #unitTest5()
