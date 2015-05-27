@@ -33,7 +33,7 @@ readdatafile            --> (csvData output)
 |    subsample          --> (csvData output) [call before clean]
 |    clean              --> (csvData output)
 |    calcinvarient      --> (csvData output) [call after clean]
-|    splitcsvfile      --> (data output)
+|    splitcsvfile       --> (data output)
 |    |    pad           --> (data output)
 |    |    vcat          --> (data output)
 |    |    getjointdata  --> (X output)
@@ -41,6 +41,9 @@ readdatafile            --> (csvData output)
 |    |    (data input)
 |    (csvData input)
 (file/folder level input)
+
+TO DO: csvData is unnecessary ... I should convert all the functions in data
+or X format
 -------------------------------------------------------------------------------
     Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
     Rochester Human-Computer Interaction (ROCHCI)
@@ -54,6 +57,7 @@ import scipy.io as sio
 import scipy.signal as sg
 ############################## Convenience ####################################
 # TODO: change arguments to all lower case
+
 # Read the Skeletal tree file
 def readskeletaltree(treeFilename):
     assert os.path.isfile(treeFilename)
@@ -413,6 +417,7 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+
 ############################## Test Modules ####################################
 # Read, subsample, clean and concatenate all the data and save as mat file
 def unitTest1(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
@@ -499,5 +504,5 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest1_sep()
+    unitTest2()
     #unitTest5()

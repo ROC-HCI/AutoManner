@@ -86,7 +86,7 @@ class plotskeleton(object):
         # Start Animation
         self.ani = animation.FuncAnimation(self.fig, self.update,\
                     xrange(self.bx[0],self.bx[1],self.bx[2]),interval=5,\
-                    init_func=self.setup_plot, blit=True)
+                    init_func=self.setup_plot, blit=False)
     # This function will prepare the data and legend strings for plotting
     def prepDatToPlot(self):
         dat1 = np.zeros((self.bx[1]-self.bx[0],3*len(self.jointid1)))
@@ -127,6 +127,7 @@ class plotskeleton(object):
             labeltop='on',
             labelleft='on',
             labelright='off') # labels along the bottom edge are off
+        self.ax.set_animated=True
         # Draw the skeleton plots
         self.lines = [self.ax.plot([self.x[self.bx[0],start],\
         self.x[self.bx[0],end]],[self.z[self.bx[0],start],\
@@ -167,7 +168,8 @@ class plotskeleton(object):
                           [self.z[i,self.boneStartIdx[idx]],\
                            self.z[i,self.boneEndIdx[idx]]])
             self.lines[idx].set_3d_properties([self.y[i,\
-            self.boneStartIdx[idx]],self.y[i,self.boneEndIdx[idx]]])
+            self.boneStartIdx[idx]],self.y[i,self.boneEndIdx[idx]]])   
+        plt.draw()
         # Update the marker
         self.marker1.set_data([self.timeStamp[i]/1000.0,\
         self.timeStamp[i]/1000.0],self.axplott1.get_ylim())
@@ -420,11 +422,12 @@ def unittest6(filename, actionidx,azim,elev,highlightedBones=[\
     elev,highlightedBones,boxon,zspacing)
     plt.show()    
 if __name__ == '__main__':
-    #unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
+    #unittest1()
+    unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
     #unittest3('Data/meanSkel.mat',True)    
     #unittest4('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest5('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
-    unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1,-97,5)
+    #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1,-97,5)
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',3,-90,25)    
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',\
     #5,-85,-160,highlightedBones=['HIP_KNEE','KNEE_ANKLE','ANKLE_FOOT'],space=10,zspacing = False)    

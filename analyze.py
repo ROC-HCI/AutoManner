@@ -250,7 +250,7 @@ def csc_pgd(X,M,D,beta,iter_thresh=65536,thresh = 1e-5,dispObj=False,\
                 break
         print 'LR_p/a','{:.1e}'.format(gamma_psi),'/',
         psi = newPsi.copy()
-#        # Update Alpha        
+        # Update Alpha        
         gamma_alpha = 1.0
         # Calculate gradient of P with respect to alpha
         gralpha = calcGrad_alpha(alpha,psi,X,workers)
