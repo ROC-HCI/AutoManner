@@ -24,21 +24,21 @@ def makeTranslationInvariant(data):
 data,dataheader=fio.splitcsvfile(*fio.readdatafile('Data/13.3.csv'))[0:2]
 data,ref = makeTranslationInvariant(data)
 meandata = np.mean(data,axis=0)
+animateSkeleton(data)
+# # Apply Principal Component Analysis
+# #pca = PCA(n_components=3)
+# #pca = pca.fit(data)
+# #movement = np.sin(np.arange(-np.pi,np.pi,0.1))[None].T*pca.components_[2][None]
+# #animateSkeleton(meandata + movement)
+# #drawskel(meandata)
+# #animateSkeleton(data)
 
-# Apply Principal Component Analysis
-#pca = PCA(n_components=3)
-#pca = pca.fit(data)
-#movement = np.sin(np.arange(-np.pi,np.pi,0.1))[None].T*pca.components_[2][None]
-#animateSkeleton(meandata + movement)
-#drawskel(meandata)
-#animateSkeleton(data)
+# # Reformat the data (pad)
+# X = fio.getjointdata(data,range(20))
+# numZeros = (nextpow2(len(X))-len(X))
+# X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
 
-# Reformat the data (pad)
-X = fio.getjointdata(data,range(20))
-numZeros = (nextpow2(len(X))-len(X))
-X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
-
-# Apply SISC
-alpha_recon,psi_recon,logObj,reconError,L0 = sisc.optimize_proxim(X,M=60,D=12,)
+# # Apply SISC
+# alpha_recon,psi_recon,logObj,reconError,L0 = sisc.optimize_proxim(X,M=60,D=12,)
 
 

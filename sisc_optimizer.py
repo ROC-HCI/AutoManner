@@ -102,7 +102,6 @@ def calcObjf(X,alpha,psi,beta,p):
 # Logarithm of the objective function
 def loglike(X,alpha,psi,beta,p):
     return M.log(calcObjf(X,alpha,psi,beta,p))
-    #return (0.5*np.sum((X-L)**2.))
 ########################### Projection Functions ##############################
 #Normalize psi (Project onto unit circle)    
 def normalizePsi(psi):
@@ -158,9 +157,8 @@ def convAlphaPsi(alpha,psi,p):
         convRes[:,:,d] = np.array(p.map(partconvolve,psi[:,:,d].T,1)).T
     return convRes
 # Reconstruct the data from components
-# s is d x 1 tensor containing scalar loading for each alpha*psi
 # alpha is N x D, psi is M x K X D
-# OUTPUT: inner product of alpha*psi and s
+# OUTPUT: sum of alpha*psi
 def recon(alpha,psi,p):
     szAlpha = np.shape(alpha)
     szPsi = np.shape(psi)
@@ -210,7 +208,7 @@ def calcGrad_psi(alpha,psi,X,p):
 # beta is the weight for sparcity constraint
 # The last two parameters (psi_orig and alpha_orig) are for debug purposes only
 def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
-    thresh = 1e-6,dispObj=False,dispGrad=False,dispIteration=False,totWorker=4,\
+    thresh = 1e-5,dispObj=False,dispGrad=False,dispIteration=False,totWorker=4,\
     psi_orig=[], alpha_orig=[]):
 # def optimize_proxim(X,M,D,beta,iter_thresh=65536,thresh = 1e-3,dispObj=False,\
 # 		dispGrad=False,dispIteration=False,totWorker=4):
@@ -220,7 +218,7 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
     # total number of scalars involved in the objective function (N*K)
     # Therefore, a scaling of beta is necessary to resist tuning beta for
     # every different sample size
-    beta = beta*N*K
+    # beta = beta*N*K
     # M and N must be nonzero and power of two
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
     workers = Pool(processes=totWorker)   # Assign workers

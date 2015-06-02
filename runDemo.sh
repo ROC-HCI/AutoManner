@@ -1,1 +1,1 @@
-python sisc_wrapper.py -toy 6 --Disp -M 32 -Beta 3e-5
+python sisc_wrapper.py -toy 6 --Disp -M 32 -Beta 0.03
