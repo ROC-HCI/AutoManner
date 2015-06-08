@@ -54,7 +54,7 @@ def buildArg():
     metavar='ITERATION_THRESHOLD',\
     help='Threshold of iteration (termination criteria) (default:%(default)s)')
     
-    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-5,\
+    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-6,\
     metavar='DIFFERENCE_THRESHOLD',\
     help='Threshold of difference in log objective function\
     (termination criteria) (default:%(default)s)')
@@ -138,8 +138,7 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         print 'K = ', str(np.size(X,axis=1))
         print 'M = ', str(M)
         print 'D = ', str(D)
-        print 'beta = ', str(beta),'(beta*N*K = ',\
-                    str(beta*len(X)*np.size(X,axis=1)),')'
+        print 'beta = ', str(beta)
         dispPlots(alpha_recon,psi_recon,X,'Final Result',p)
         pp.pause(1)
         pp.show()

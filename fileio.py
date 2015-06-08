@@ -406,8 +406,8 @@ def toyExample_orthogonal_3d_multicomp():
 # Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
-    alpha[np.random.rand(N)>0.95,0]=1.0
-    alpha[np.random.rand(N)>0.95,1]=1.0
+    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],0]=5*np.random.rand(10)
+    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],1]=5*np.random.rand(10) 
     xVal = np.linspace(-1,1,M)*np.pi
     psi = np.zeros((len(xVal),3,2))
     psi[:,0,0] = np.sin(xVal)

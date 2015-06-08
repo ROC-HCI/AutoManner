@@ -1,5 +1,9 @@
 '''
 This is the main optimizer module for Shift Invariant Sparse Coding.
+The objective function is normalized by sequence
+length. Therefore, the lagrange multiplier Beta doesn't need to change for
+different length of data. The stopping criterion is changed to normalize the
+effect of signal size.
 Besides the optimizer module, it also contains several helper functions.
 These functions are mainly required for debuging and plotting the results
 -------------------------------------------------------------------------------
@@ -14,7 +18,7 @@ from itertools import izip
 import numpy as np
 import scipy.signal as sg
 import matplotlib.pyplot as pp
-import math as M
+import math
 import time
 
 
@@ -79,38 +83,32 @@ def dispOriginal(alpha,psi):
 # Find the next power of 2
 def nextpow2(i):
     # do not use numpy here, math is much faster for single values
-    buf = M.ceil(M.log(i) / M.log(2))
-    return int(M.pow(2, buf))        
+    buf = math.ceil(math.log(i) / math.log(2))
+    return int(math.pow(2, buf))        
 ######################### Algorithm Control Functions #########################     
-# Model functions
-def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha,p):
-    return calcP(X,alpha_k,psi,p) + \
-    np.sum(gradAlpha*(alpha - alpha_k)) + \
-    0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
-def modelfunc_psi(alpha,psi_k,psi,X,Gamma,gradPsi,p):
-    return calcP(X,alpha,psi_k,p) + \
-    np.sum(gradPsi*(psi - psi_k)) + \
-    0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
+## Model functions for line search
+#def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha,p):
+#    return calcP(X,alpha_k,psi,p) + \
+#    np.sum(gradAlpha*(alpha - alpha_k)) + \
+#    0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
+#def modelfunc_psi(alpha,psi_k,psi,X,Gamma,gradPsi,p):
+#    return calcP(X,alpha,psi_k,p) + \
+#    np.sum(gradPsi*(psi - psi_k)) + \
+#    0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
 ################### Functions for calculating objectives ######################
 # Mean squared error part of the objective function
 def calcP(X,alpha,psi,p):
+    N = np.size(alpha,axis=0)
     L = recon(alpha,psi,p)
-    return 0.5*np.sum((X-L)**2.)
+    return 0.5*np.sum((X-L)**2.)/N
 # Actual value of the objective function
 def calcObjf(X,alpha,psi,beta,p):
-    return calcP(X,alpha,psi,p)+beta*np.sum(np.abs(alpha))
+    N = np.size(alpha,axis=0)
+    return calcP(X,alpha,psi,p)+(beta/N)*np.sum(np.abs(alpha))
 # Logarithm of the objective function
-def loglike(X,alpha,psi,beta,p):
-    return M.log(calcObjf(X,alpha,psi,beta,p))
+def logcost(X,alpha,psi,beta,p):
+    return math.log(calcObjf(X,alpha,psi,beta,p))
 ########################### Projection Functions ##############################
-#Normalize psi (Project onto unit circle)    
-def normalizePsi(psi):
-    M,K,D = np.shape(psi)
-    for d in xrange(D):
-        psiNorm = np.linalg.norm(psi[:,:,d])
-        if (psiNorm>0):
-            psi[:,:,d] = psi[:,:,d]/psiNorm
-    return psi
 # Project psi in a set {Norm(psi) < c}
 def projectPsi(psi,c):
     M,K,D = np.shape(psi)
@@ -124,7 +122,7 @@ def shrink(alpha, threshold):
     assert(N>D)
     for d in xrange(np.shape(alpha)[1]):
         alpha[:,d] = np.sign(alpha[:,d])*np.maximum(\
-        np.zeros(np.shape(alpha[:,d])),np.abs(alpha[:,d])-threshold)
+        np.zeros_like(alpha[:,d]),np.abs(alpha[:,d])-threshold)
     return alpha
 ######################### Initialization Function #############################
 # Randomly initialize alpha and psi
@@ -182,7 +180,7 @@ def calcGrad_alpha(alpha,psi,X,p):
         parArgs = izip(lxDiff,psi[::-1,:,d].T)
         gradP_alpha[:,d,:] = np.array(p.map(__myconvolve1,parArgs,1))\
         [:,(M+N)/2-N/2:(M+N)/2+N/2].T
-    gradP_alpha = np.sum(gradP_alpha,axis=2)
+    gradP_alpha = np.sum(gradP_alpha,axis=2) # Sum over axis for k's
     return gradP_alpha
 # Manually Checked with sample data -- Working as indended
 # Grad of P wrt psi is sum((X(t)-L(t))alpha(t-t'))
@@ -208,74 +206,68 @@ def calcGrad_psi(alpha,psi,X,p):
 # beta is the weight for sparcity constraint
 # The last two parameters (psi_orig and alpha_orig) are for debug purposes only
 def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
-    thresh = 1e-5,dispObj=False,dispGrad=False,dispIteration=False,totWorker=4,\
+    thresh = 1e-6,dispObj=False,dispGrad=False,dispIteration=False,totWorker=4,\
     psi_orig=[], alpha_orig=[]):
-# def optimize_proxim(X,M,D,beta,iter_thresh=65536,thresh = 1e-3,dispObj=False,\
-# 		dispGrad=False,dispIteration=False,totWorker=4):
     iter = 0
     N,K = np.shape(X)
-    # Scaling of Beta: The nonsparsity cost beta should be linear to the 
-    # total number of scalars involved in the objective function (N*K)
-    # Therefore, a scaling of beta is necessary to resist tuning beta for
-    # every different sample size
-    # beta = beta*N*K
     # M and N must be nonzero and power of two
     assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
-    workers = Pool(processes=totWorker)   # Assign workers
+    thresh = thresh*N/256   # correction for signal lenght
+    sigPerSampl = np.linalg.norm(X)/N # Signal per sample
+    workers = Pool(processes=totWorker)   # Assign workers for parallel proc
     psi,alpha = sisc_init(M,N,K,D)   # Random initialization
     #psi = psi_orig                 # Setting the initial value to actual
-    #alpha = alpha_orig             # solution. Debug purpose only    
-    factor = 0.5
-    prevlikeli = loglike(X,alpha,psi,beta,workers)
-    maxDeltaLikeli = 0
+    #alpha = alpha_orig             # solution. Debug purpose only
+    prevcost = logcost(X,alpha,psi,beta,workers)
     countZero = 0
     # Main optimization loop
     while iter < iter_thresh:
         itStartTime = time.time()
         print str(iter),
-        # Update psi and alpha with line search        
         # Update psi
-        gamma_psi = 1.0
+        # ==========
         # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X,workers)
-        while True:
-            newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-            if modelfunc_psi(alpha,psi,newPsi,X,gamma_psi,grpsi,workers)<\
-                                            calcP(X,alpha,newPsi,workers):
-                gamma_psi *= factor
+        currentcost = logcost(X,alpha,psi,beta,workers)
+        #gamma_psi,setZero = math.sqrt(iter+1),False
+        gamma_psi,setZero = N/2,False
+        for trialno in xrange(int(math.ceil(math.log(N,2)))+2):
+            newPsi = projectPsi(psi - gamma_psi*grpsi/N,1.0)
+            if logcost(X,alpha,newPsi,beta,workers) < currentcost:
+                psi = newPsi.copy()
+                setZero = False
+                break
             else:
-                break
-            if gamma_psi<1e-15:
-                gamma_psi = 0
-                newPsi = projectPsi(psi - gamma_psi*grpsi,1.0)
-                break
-        print 'LR_p/a','{:.1e}'.format(gamma_psi),'/',
-        psi = newPsi.copy()
-        # Update Alpha        
-        gamma_alpha = 1.0
-        # Calculate gradient of P with respect to alpha
+                gamma_psi = gamma_psi/2
+                setZero = True
+        if setZero:
+            gamma_psi = 0 
+        print 'LR_p/a','{:.2f}'.format(gamma_psi),
+        
+        # Update alpha
+        # ============
         gralpha = calcGrad_alpha(alpha,psi,X,workers)
-        # Apply accelerated
-        while True:
-            newAlpha = shrink(alpha - gamma_alpha*gralpha,gamma_alpha*beta)
-            if modelfunc_alpha(alpha,newAlpha,psi,X,gamma_alpha,gralpha,\
-            workers)<calcP(X,newAlpha,psi,workers):
-                gamma_alpha *= factor
+        # Try reducing the learning rate if it is too large. If three tries
+        # fail consecutively, just set it to zero.
+        currentcost = logcost(X,alpha,psi,beta,workers)
+        #gamma_alpha,setZero = math.sqrt(iter+1),False
+        gamma_alpha,setZero = N/2,False
+        for trialno in xrange(int(math.ceil(math.log(N,2)))+2):
+            newAlpha = shrink(alpha - gamma_alpha*gralpha/N,gamma_alpha*beta/N)
+            if logcost(X,newAlpha,psi,beta,workers) < currentcost:
+                alpha = newAlpha.copy()
+                setZero = False
+                break
             else:
-                break
-            if gamma_alpha<1e-15:
-                gamma_alpha = 0
-                newAlpha = shrink(alpha - gamma_alpha*gralpha,\
-                                                            gamma_alpha*beta)
-                break
-        print '{:.2e}'.format(gamma_alpha),
-        alpha = newAlpha.copy()
+                gamma_alpha = gamma_alpha/2
+                setZero = True
+        if setZero:
+            gamma_alpha = 0
+        print '{:.2f}'.format(gamma_alpha),
         # Count the iteration
         iter += 1
-        # Debug and Display        
-        likeli = loglike(X,alpha,psi,beta,workers)
-        #valP = calcP(X,alpha,psi)
         
+        # Display graphs and print status
         if dispGrad: 
             # Display Gradiants
             dispGrads(gralpha,grpsi)
@@ -283,33 +275,39 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
             # Display alpha, psi, X and L
             dispPlots(alpha,psi,X,'Iteration Data',workers)
         # Display Log Objective
+        cost = logcost(X,alpha,psi,beta,workers)            
         if dispObj:
             pp.figure('Log likelihood plot')
-            pp.scatter(iter,likeli,c = 'b')
+            pp.scatter(iter,cost,c = 'b')
             pp.title('Likelihood Plot for Beta = ' + '{:f}'.format(beta))
             pp.draw()
             pp.pause(1)
         # Print iteration status.
-        delta = prevlikeli - likeli
-        maxDeltaLikeli = max(maxDeltaLikeli,abs(delta))
+        delta = prevcost - cost
+        prevcost = cost
+        SNR = sigPerSampl/math.exp(cost)
         print 'N',str(N),'K',str(K),'M',str(M),'D',str(D),'Beta',\
-        str(beta/N/K)+'('+str(beta)+')',\
-            'logObj','{:.2f}'.format(likeli), \
-            'delta','{:.2e}'.format(delta),\
-            'iterTime','{:.2e}'.format(time.time() - itStartTime)
-                
-        # terminate loop
-        allowZero_number = 8
+        str(beta),'logObj','{:.2f}'.format(cost), \
+            'SNR','{:.2f}'.format(SNR),\
+            'delta(thr='+'{:.0e}'.format(thresh)+')',\
+            '{:.2e}'.format(delta),'itTime',\
+            '{:.2e}'.format(time.time() - itStartTime)
+            
+        # terminate loop with a little leniency for the obj f to stay flat  
+        maxConsecFlat = 8
         if (delta<thresh) or np.isnan(delta):
-            if (delta<thresh or np.isnan(delta))and countZero<allowZero_number:
+            if (delta<thresh or np.isnan(delta))and countZero<maxConsecFlat:
                 countZero += 1
             elif (delta < thresh or np.isnan(delta)) and \
-            countZero>=allowZero_number:
+            countZero>=maxConsecFlat:
                 break
             print countZero
         else:
-            countZero = 0
-            prevlikeli = likeli
+            countZero = 0        
+        # zero tolerance on increasing cost
+        assert(prevcost<=cost)
+
+        
     reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)
-    return alpha,psi,likeli,reconError,L0
+    return alpha,psi,cost,reconError,L0

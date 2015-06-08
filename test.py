@@ -8,7 +8,7 @@ Created on Sun May 24 00:32:12 2015
 import fileio as fio
 from skelplot_mayavi import * 
 import numpy as np
-import sisc_optimizer as sisc
+from sisc_optimizer import *
 
 # Foot_left = 15 and Foot_Right = 19 
 def makeTranslationInvariant(data):
@@ -22,9 +22,9 @@ def makeTranslationInvariant(data):
     return data, np.concatenate((ref_x,ref_y,ref_z),axis=1)
     
 data,dataheader=fio.splitcsvfile(*fio.readdatafile('Data/13.3.csv'))[0:2]
-data,ref = makeTranslationInvariant(data)
-meandata = np.mean(data,axis=0)
-animateSkeleton(data)
+#data,ref = makeTranslationInvariant(data)
+#meandata = np.mean(data,axis=0)
+#animateSkeleton(data)
 # # Apply Principal Component Analysis
 # #pca = PCA(n_components=3)
 # #pca = pca.fit(data)
@@ -33,12 +33,13 @@ animateSkeleton(data)
 # #drawskel(meandata)
 # #animateSkeleton(data)
 
-# # Reformat the data (pad)
-# X = fio.getjointdata(data,range(20))
-# numZeros = (nextpow2(len(X))-len(X))
-# X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
+ # Reformat the data (pad)
+X = fio.getjointdata(data,range(20))
+numZeros = (nextpow2(len(X))-len(X))
+X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
 
 # # Apply SISC
-# alpha_recon,psi_recon,logObj,reconError,L0 = sisc.optimize_proxim(X,M=60,D=12,)
+alpha_recon,psi_recon,logObj,reconError,L0 = sisc.optimize_proxim(X,M=64,D=12,beta=0.03)
+pass
 
 
