@@ -128,7 +128,7 @@ def toyTest(args):
     D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
     dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
-    totWorker=args.p)[:2]
+    totWorker=args.p)
     # alpha_recon,psi_recon = optimize_proxim(X,M,D,beta,dispObj=dispObj,\
     #                 dispGrad=dispGrad,dispIteration=dispIteration)[:2]
     # Display the reconstructed values
