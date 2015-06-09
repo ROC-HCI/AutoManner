@@ -96,8 +96,8 @@ def buildArg():
     debuging. Hugely slows down the algorithm.')
     return args
 ################################## Unit Test ##################################
-def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
-                                            dispIteration=False,totWorker=4):
+def toyTest(args):
+    dataID = args.toy
 #   Synthetic Toy Data
     if dataID==1:
         alpha,psi = fio.toyExample_medium()
@@ -115,11 +115,11 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         alpha,psi = fio.toyExample_large_3d_multicomp()
     elif dataID==8:
         alpha,psi = fio.toyExample_orthogonal_3d_multicomp()
-    p = Pool(totWorker)
+    p = Pool(args.p)
     # Construct the data            
     X = recon(alpha,projectPsi(psi,1.0),p)
     # Display Original Data if allowed
-    if disp:
+    if args.Disp:
         dispOriginal(alpha,psi)
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
@@ -132,13 +132,13 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
     # alpha_recon,psi_recon = optimize_proxim(X,M,D,beta,dispObj=dispObj,\
     #                 dispGrad=dispGrad,dispIteration=dispIteration)[:2]
     # Display the reconstructed values
-    if disp:
+    if args.Disp:
         print '### Parameters ###'
         print 'N = ', str(len(X))
         print 'K = ', str(np.size(X,axis=1))
-        print 'M = ', str(M)
-        print 'D = ', str(D)
-        print 'beta = ', str(beta)
+        print 'M = ', str(args.M)
+        print 'D = ', str(args.D)
+        print 'beta = ', str(args.Beta)
         print 'cost = ', str(cost)
         print 'SNR = ', str(SNR)
         print 'reconError = ', str(reconError)
@@ -154,7 +154,7 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,'SNR':SNR,\
         'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
         'M':args.M,'D':args.D,'Beta':args.Beta,'X':X,'alpha_origin':alpha,\
-        'psi_origin':psi,'Data_Origin':'Toy'})
+        'psi_origin':psi,'Data_Origin':'Toy'},do_compression=True)
 
 # Work with real data
 def realTest(args):
@@ -193,9 +193,7 @@ def main():
     args = parser.parse_args()
     # Handle the toy data
     if not args.toy == None:
-        toyTest(args.toy,D=args.D,M=args.M,beta=args.Beta,\
-            disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
-            dispIteration=args.Disp_Iterations,totWorker=args.p)
+        toyTest(args)
     else:
         # Handle the real data
         realTest(args)
