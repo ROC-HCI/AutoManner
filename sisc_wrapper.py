@@ -124,9 +124,11 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
     # Apply Convolutional Sparse Coding. 
     # Length of AEB is set to 2 seconds (60 frames)    
     # D represents how many Action Units we want to capture
-    alpha_recon,psi_recon = optimize_proxim(X,M,D,beta,dispObj=dispObj,\
-                dispGrad=dispGrad,dispIteration=dispIteration,\
-                psi_orig=psi,alpha_orig=alpha)[:2]
+    alpha_recon,psi_recon,cost,reconError,L0,SNR = optimize_proxim(X,M=args.M,\
+    D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
+    thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
+    dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
+    totWorker=args.p)[:2]
     # alpha_recon,psi_recon = optimize_proxim(X,M,D,beta,dispObj=dispObj,\
     #                 dispGrad=dispGrad,dispIteration=dispIteration)[:2]
     # Display the reconstructed values
@@ -137,10 +139,22 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
         print 'M = ', str(M)
         print 'D = ', str(D)
         print 'beta = ', str(beta)
+        print 'cost = ', str(cost)
+        print 'SNR = ', str(SNR)
+        print 'reconError = ', str(reconError)
+        print 'L0 = ', str(L0)
         dispPlots(alpha_recon,psi_recon,X,'Final Result',p)
         pp.pause(1)
         pp.show()
-    return alpha_recon,psi_recon    
+    else:
+        # Save the results
+        resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
+            str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
+            '%H_%M_%S',time.localtime())
+        sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,'SNR':SNR,\
+        'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
+        'M':args.M,'D':args.D,'Beta':args.Beta,'X':X,'alpha_origin':alpha,\
+        'psi_origin':psi,'Data_Origin':'Toy'})
 
 # Work with real data
 def realTest(args):
@@ -155,7 +169,7 @@ def realTest(args):
     # apply Convolutional Sparse Coding
     numZeros = (nextpow2(len(X))-len(X))
     X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
-    alpha_recon,psi_recon,logObj,reconError,L0 = optimize_proxim(X,M=args.M,\
+    alpha_recon,psi_recon,logObj,reconError,L0,SNR = optimize_proxim(X,M=args.M,\
     D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
     dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
@@ -169,7 +183,7 @@ def realTest(args):
     'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
     'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j,'Header':\
     allData['dataHead'],'timeData':allData['data'][:,0:2],\
-    'decimateratio':allData['decimateratio']})
+    'decimateratio':allData['decimateratio'],'SNR':SNR,'Data_Origin':'Real'})
         
 ################################ Main Entrance ################################
 
@@ -177,13 +191,11 @@ def main():
     # Handle arguments
     parser = buildArg()
     args = parser.parse_args()
-    
     # Handle the toy data
     if not args.toy == None:
-        alpha_recon,psi_recon = toyTest(args.toy,D=args.D,M=args.M,beta=args.Beta,\
+        toyTest(args.toy,D=args.D,M=args.M,beta=args.Beta,\
             disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
             dispIteration=args.Disp_Iterations,totWorker=args.p)
-        return
     else:
         # Handle the real data
         realTest(args)
