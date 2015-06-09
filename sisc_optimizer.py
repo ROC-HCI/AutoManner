@@ -1,5 +1,5 @@
 '''
-This is the main optimizer module for Shift Invariant Sparse Coding.
+This is the optimizer module for Shift Invariant Sparse Coding with non-negative alpha.
 The objective function is normalized by sequence
 length. Therefore, the lagrange multiplier Beta doesn't need to change for
 different length of data. The stopping criterion is changed to normalize the
@@ -116,13 +116,14 @@ def projectPsi(psi,c):
         psiNorm = np.linalg.norm(psi[:,:,d])
         psi[:,:,d] = min(c,psiNorm)*(psi[:,:,d]/psiNorm)
     return psi
-# Apply Proximal/Shrinkage operation on alpha
+# Apply Proximal/Shrinkage operation on alpha. Also project alpha to positive set
 def shrink(alpha, threshold):
     N,D = np.shape(alpha)
     assert(N>D)
     for d in xrange(np.shape(alpha)[1]):
         alpha[:,d] = np.sign(alpha[:,d])*np.maximum(\
         np.zeros_like(alpha[:,d]),np.abs(alpha[:,d])-threshold)
+    alpha[alpha<0]=0 # Project alpha to set {x:x>=0}
     return alpha
 ######################### Initialization Function #############################
 # Randomly initialize alpha and psi
@@ -310,4 +311,6 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
         
     reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)
-    return alpha,psi,cost,reconError,L0
+    return alpha,psi,cost,reconError,L0,SNR
+
+

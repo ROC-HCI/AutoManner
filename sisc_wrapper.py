@@ -1,7 +1,7 @@
 ''' Human Behavior Analysis Module
     ==============================
-    This program extracts Behavioral Action Units (BAU's) using 
-    Shift Invariant Sparse Coding. This module is the main extrance point.
+    This program is the main entry point for extracting Behavioral Action
+    Units (BAU's) using Shift Invariant Sparse Coding.
 -------------------------------------------------------------------------------
     Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
     Rochester Human-Computer Interaction (ROCHCI)
@@ -41,7 +41,7 @@ def buildArg():
     (default: %(default)s)')
 
     args.add_argument('-toy',nargs='?',type=int,\
-    choices=range(1,8),metavar='TOY_DATA_ID',\
+    choices=range(1,9),metavar='TOY_DATA_ID',\
     help='This will override the INPUT_MAT_FILENAME with synthetic toy data.\
     The ID refers different preset synthetic data. \
     Must be chosen from the following: %(choices)s')    
@@ -100,23 +100,21 @@ def toyTest(dataID,D=2,M=64,beta=0.05,disp=True,dispObj=False,dispGrad=False,\
                                             dispIteration=False,totWorker=4):
 #   Synthetic Toy Data
     if dataID==1:
-        D=1
         alpha,psi = fio.toyExample_medium()
     elif dataID==2:
-        D=1
         alpha,psi = fio.toyExample_medium_boostHighFreq()
     elif dataID==3:
-        D=1
         alpha,psi = fio.toyExample_medium_boostHighFreq()
     elif dataID==4:
-        D=1
-        alpha,psi = fio.toyExample_medium_1d()
+        alpha,psi = fio.toyExample_reallike()
     elif dataID==5:
         alpha,psi = fio.toyExample_medium_1d_multicomp()
     elif dataID==6:
         alpha,psi = fio.toyExample_medium_3d_multicomp() 
     elif dataID==7:
-        alpha,psi = fio.toyExample_large_3d_multicomp()    
+        alpha,psi = fio.toyExample_large_3d_multicomp()
+    elif dataID==8:
+        alpha,psi = fio.toyExample_orthogonal_3d_multicomp()
     p = Pool(totWorker)
     # Construct the data            
     X = recon(alpha,projectPsi(psi,1.0),p)
@@ -182,7 +180,7 @@ def main():
     
     # Handle the toy data
     if not args.toy == None:
-        alpha_recon,psi_recon = toyTest(args.toy,D=2,M=args.M,beta=args.Beta,\
+        alpha_recon,psi_recon = toyTest(args.toy,D=args.D,M=args.M,beta=args.Beta,\
             disp=args.Disp,dispObj=args.Disp_Obj,dispGrad=args.Disp_Gradiants,\
             dispIteration=args.Disp_Iterations,totWorker=args.p)
         return

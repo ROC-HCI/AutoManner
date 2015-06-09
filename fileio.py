@@ -295,9 +295,9 @@ def writeAll(outfilename,style,inputpath='Data/',\
 def toyExample_medium():
     alpha = np.zeros((256,1))
     alpha[35] = 0.5
-    alpha[140] = -0.5
+    alpha[140] = 0.5
     alpha[160] = 1
-    alpha[220] = -1
+    alpha[220] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = np.sin(xVal)
@@ -308,9 +308,9 @@ def toyExample_medium():
 def toyExample_medium_boostHighFreq():
     alpha = np.zeros((256,1))
     alpha[35] = 0.5
-    alpha[140] = -0.5
+    alpha[140] = 0.5
     alpha[160] = 1
-    alpha[220] = -1
+    alpha[220] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = 0.5*np.sin(xVal)
@@ -321,25 +321,27 @@ def toyExample_medium_boostHighFreq():
 def toyExample_medium_boostLowFreq():
     alpha = np.zeros((256,1))
     alpha[35] = 0.5
-    alpha[140] = -0.5
+    alpha[140] = 0.5
     alpha[160] = 1
-    alpha[220] = -1
+    alpha[220] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = 2*np.sin(xVal)
     psi[:,1,0] = np.sin(2*xVal-np.pi)
     psi[:,2,0] = 0.5*np.sin(4*xVal-np.pi/4)
     return alpha,psi
-# Generate and return a toy data
-def toyExample_medium_1d():
-    alpha = np.zeros((256,1))
-    alpha[35] = 0.5
-    alpha[140] = -0.5
-    alpha[160] = 1
-    alpha[220] = -1
-    xVal = np.linspace(-1,1,32)*np.pi
-    psi = np.zeros((len(xVal),1,1))
-    psi[:,0,0] = np.sin(xVal)
+# Generate and return a toy data similar to the real life dataset
+def toyExample_reallike(N=4096,M=64):
+    D = 8
+    K = 60
+    alpha = np.zeros((N,D))
+    psi = np.zeros((M,K,D))
+    xVal = np.linspace(-1,1,M)*np.pi
+    for d in xrange(D):
+        alpha[[int(x) for x in np.random.rand(5)*(N-1)],d]=1.
+    for d in xrange(D):
+        for k in xrange(K):
+            psi[:,k,d] = 2.0*np.sin(xVal*(d+1)/D + 1.0*k/K*np.pi)
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_1d_multicomp():
@@ -348,14 +350,14 @@ def toyExample_medium_1d_multicomp():
     alpha[100,0] = 1
     alpha[125,0] = 1
     alpha[175,0] = 1
-    alpha[230,0] = -1
-    alpha[50,1] = -0.5
+    alpha[230,0] = 1
+    alpha[50,1] = 0.5
     alpha[100,1] = 1
-    alpha[150,1] = -1
+    alpha[150,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),1,2))
-    psi[:,0,0] = np.cos(xVal/2.0)
+    psi[:,0,0] = -1*np.cos(xVal/2.0)
     psi[:,0,1] = np.pi - np.abs(xVal)
     #psi[:,0,2] = np.greater_equal(np.pi/2.,np.abs(xVal))
     return alpha,psi
@@ -364,12 +366,12 @@ def toyExample_medium_3d_multicomp():
     alpha = np.zeros((256,2))
     alpha[35,0] = 0.5
     alpha[180,0] = 1
-    alpha[140,0] = -0.5
+    alpha[140,0] = 0.5
     alpha[160,0] = 1
-    alpha[220,0] = -1
+    alpha[220,0] = 1
     alpha[50,1] = 1
     alpha[75,1] = 0.5
-    alpha[100,1] = -0.5
+    alpha[100,1] = 0.5
     alpha[160,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
@@ -381,17 +383,18 @@ def toyExample_medium_3d_multicomp():
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
-# Generate and return a toy data
+# A deceitful dataset where the addition of two components result in
+# a signal orthogonal to the components. 
 def toyExample_orthogonal_3d_multicomp():
     alpha = np.zeros((256,2))
     alpha[35,0] = 0.5
     alpha[180,0] = 1
-    alpha[140,0] = -0.5
+    alpha[140,0] = 0.5
     alpha[160,0] = 1
-    alpha[220,0] = -1
+    alpha[220,0] = 1
     alpha[50,1] = 1
     alpha[75,1] = 0.5
-    alpha[100,1] = -0.5
+    alpha[100,1] = 0.5
     alpha[160,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
