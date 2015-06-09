@@ -133,7 +133,7 @@ def toyTest(args):
     #                 dispGrad=dispGrad,dispIteration=dispIteration)[:2]
     # Display the reconstructed values
     if args.Disp:
-        print '### Parameters ###'
+        print '### Parameters & Results ###'
         print 'N = ', str(len(X))
         print 'K = ', str(np.size(X,axis=1))
         print 'M = ', str(args.M)
@@ -149,7 +149,7 @@ def toyTest(args):
     else:
         # Save the results
         resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
-            str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
+            str(args.Beta)+'_'+time.strftime(\
             '%H_%M_%S',time.localtime())
         sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,'SNR':SNR,\
         'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
@@ -181,7 +181,7 @@ def realTest(args):
         '%H_%M_%S',time.localtime())
     sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
     'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
-    'M':args.M,'D':args.D,'Beta':args.Beta,'joints':args.j,'Header':\
+    'M':args.M,'D':args.D,'Beta':args.Beta,'Header':\
     allData['dataHead'],'timeData':allData['data'][:,0:2],\
     'decimateratio':allData['decimateratio'],'SNR':SNR,'Data_Origin':'Real'})
         
