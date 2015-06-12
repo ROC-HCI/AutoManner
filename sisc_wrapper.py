@@ -169,7 +169,7 @@ def realTest(args):
     # apply Convolutional Sparse Coding
     numZeros = (nextpow2(len(X))-len(X))
     X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
-    alpha_recon,psi_recon,logObj,reconError,L0,SNR = optimize_proxim(X,M=args.M,\
+    alpha_recon,psi_recon,cost,reconError,L0,SNR = optimize_proxim(X,M=args.M,\
     D=args.D,beta=args.Beta,iter_thresh=args.iter_thresh,\
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
     dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
@@ -180,7 +180,7 @@ def realTest(args):
         str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
         '%H_%M_%S',time.localtime())
     sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
-    'psi_recon':psi_recon,'logObj':logObj,'reconError':reconError,'L0':L0,\
+    'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
     'M':args.M,'D':args.D,'Beta':args.Beta,'Header':\
     allData['dataHead'],'timeData':allData['data'][:,0:2],\
     'decimateratio':allData['decimateratio'],'SNR':SNR,'Data_Origin':'Real'})

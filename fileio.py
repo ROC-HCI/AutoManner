@@ -10,16 +10,16 @@
 
 Note 1: Data Formats
 ....................
-1) csvData: it is the exact data from the CSV file
+1) csvData: it is the exact data from the CSV file (output of Kinect skeleton tracker)
 2) data: It contains all the join coordinates with frame number and timestamp.
       The first two columns of are frame number and timestamp respectively
 3) X: In this matrix each column represents either x, y, or, z component of
       a joint. It is not defined which column represents which joint. 
-      However, the columns are placed in a nondecreasing order of jointID
+      However, the columns are placed in an ascending order of jointID
 
 Note 2: mat file format
 .......................
-The output mat file (which is input to analyze.py module) is saved in
+The output mat file (which is input to sisc_wrapper.py module) is saved in
 two different styles. 'concat' style concatenates all the data in a big time
 series data. On the other hand, 'separate' style keeps the data separate.
 
@@ -42,8 +42,6 @@ readdatafile            --> (csvData output)
 |    (csvData input)
 (file/folder level input)
 
-TO DO: csvData is unnecessary ... I should convert all the functions in data
-or X format
 -------------------------------------------------------------------------------
     Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
     Rochester Human-Computer Interaction (ROCHCI)
