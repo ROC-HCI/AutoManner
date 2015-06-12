@@ -1,5 +1,6 @@
 '''
-This is the optimizer module for Shift Invariant Sparse Coding with non-negative alpha.
+This is the optimizer module for Shift Invariant Sparse Coding with \
+non-negative alpha.
 The objective function is normalized by sequence
 length. Therefore, the lagrange multiplier Beta doesn't need to change for
 different length of data. The stopping criterion is changed to normalize the
@@ -85,7 +86,7 @@ def nextpow2(i):
     # do not use numpy here, math is much faster for single values
     buf = math.ceil(math.log(i) / math.log(2))
     return int(math.pow(2, buf))        
-######################### Algorithm Control Functions #########################     
+######################### Algorithm Control Functions #########################
 ## Model functions for line search
 #def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha,p):
 #    return calcP(X,alpha_k,psi,p) + \

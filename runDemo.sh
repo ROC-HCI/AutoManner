@@ -49,4 +49,8 @@
 # ----------------------------------------------------------------------------
 # python filter.py Results/*beta=0.06*.mat -nlo cost | xargs rm
 
+# Plot an L curve
+# python filter.py Results/*.mat --Lcurve
+
+
 ########################################################################

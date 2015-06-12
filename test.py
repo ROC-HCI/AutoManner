@@ -39,7 +39,8 @@ numZeros = (nextpow2(len(X))-len(X))
 X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
 
 # # Apply SISC
-alpha_recon,psi_recon,logObj,reconError,L0 = sisc.optimize_proxim(X,M=64,D=12,beta=0.03)
+alpha_recon,psi_recon,logObj,reconError,L0 = sisc.optimize_proxim(\
+	X,M=64,D=12,beta=0.03)
 pass
 
 

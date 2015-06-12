@@ -218,7 +218,7 @@ def readallfiles_concat(startPath,suffix,decimateratio,invariant=True,\
                     allData = dat.copy()
                     boundDic[fullPath]=(0,datLen)
                 else:
-                    boundDic[fullPath]=(len(allData),len(allData)+datLen)                    
+                    boundDic[fullPath]=(len(allData),len(allData)+datLen) 
                     allData = vcat(allData,dat)
     return allData,boundDic,header
 
@@ -409,8 +409,10 @@ def toyExample_orthogonal_3d_multicomp():
 # Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
-    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],0]=5*np.random.rand(10)
-    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],1]=5*np.random.rand(10) 
+    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],0]=\
+    5*np.random.rand(10)
+    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],1]=\
+    5*np.random.rand(10) 
     xVal = np.linspace(-1,1,M)*np.pi
     psi = np.zeros((len(xVal),3,2))
     psi[:,0,0] = np.sin(xVal)
@@ -459,7 +461,7 @@ def unitTest4():
     csvDat,header = readdatafile('Data/20.2.csv')
     # Subsample by a ratio of 5, clean and split the data
     dat,datHead = splitcsvfile(calcinvarient(clean(subsample(csvDat,\
-                                            header,5))[0],header),header)[:2]    
+                                            header,5))[0],header),header)[:2]
     gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
     gui.show()
 # Calculate the average pose from the whole dataset    

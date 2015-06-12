@@ -327,7 +327,7 @@ def plotJointsOnly(X,framerate=30,noShow=False):
     N,D = np.shape(X)
     framestep = 1000/framerate # milliseconds per frame    
     # Prepare data
-    dataheader=fio.splitcsvfile(*fio.readdatafile('Data/test_Data.csv_test'))[1]
+    dataheader=fio.splitcsvfile(*fio.readdatafile('Data/10.1.csv'))[1]
     boneconnection = fio.readskeletaltree('Data/KinectSkeleton.tree')[1]
     data = np.zeros((N,D+2))
     data[:,2:] = X
@@ -423,8 +423,8 @@ def unittest6(filename, actionidx,azim,elev,highlightedBones=[\
     plt.show()    
 if __name__ == '__main__':
     #unittest1()
-    unittest2('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat')
-    #unittest3('Data/meanSkel.mat',True)    
+    #unittest2('Results/result_3__M=64_D=16_beta=0.055_04_58_38.mat')
+    unittest3('Data/meanSkel.mat',True)    
     #unittest4('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest5('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1)
     #unittest6('Results/top8_all/result_M=8_D=12_beta=4.5e-07_ALL_20_42_35.mat',1,-97,5)
