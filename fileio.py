@@ -10,16 +10,16 @@
 
 Note 1: Data Formats
 ....................
-1) csvData: it is the exact data from the CSV file
+1) csvData: it is the exact data from the CSV file (output of Kinect skeleton tracker)
 2) data: It contains all the join coordinates with frame number and timestamp.
       The first two columns of are frame number and timestamp respectively
 3) X: In this matrix each column represents either x, y, or, z component of
       a joint. It is not defined which column represents which joint. 
-      However, the columns are placed in a nondecreasing order of jointID
+      However, the columns are placed in an ascending order of jointID
 
 Note 2: mat file format
 .......................
-The output mat file (which is input to analyze.py module) is saved in
+The output mat file (which is input to sisc_wrapper.py module) is saved in
 two different styles. 'concat' style concatenates all the data in a big time
 series data. On the other hand, 'separate' style keeps the data separate.
 
@@ -33,7 +33,7 @@ readdatafile            --> (csvData output)
 |    subsample          --> (csvData output) [call before clean]
 |    clean              --> (csvData output)
 |    calcinvarient      --> (csvData output) [call after clean]
-|    splitcsvfile      --> (data output)
+|    splitcsvfile       --> (data output)
 |    |    pad           --> (data output)
 |    |    vcat          --> (data output)
 |    |    getjointdata  --> (X output)
@@ -41,6 +41,7 @@ readdatafile            --> (csvData output)
 |    |    (data input)
 |    (csvData input)
 (file/folder level input)
+
 -------------------------------------------------------------------------------
     Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
     Rochester Human-Computer Interaction (ROCHCI)
@@ -54,6 +55,7 @@ import scipy.io as sio
 import scipy.signal as sg
 ############################## Convenience ####################################
 # TODO: change arguments to all lower case
+
 # Read the Skeletal tree file
 def readskeletaltree(treeFilename):
     assert os.path.isfile(treeFilename)
@@ -105,7 +107,6 @@ def clean(csvData,nSecBegin = 5,nSecEnd = 5):
     csvData[:,:2] = csvData[:,:2] - csvData[0,:2]
     return csvData,cropBoundStart,cropBoundEnd
 
-# TODO: Rotational invariance
 # Calculates invarient feature by translating the origin in the body
 # It only works on joint coordinates
 def calcinvarient(csvdata,header):
@@ -116,7 +117,8 @@ def calcinvarient(csvdata,header):
     and x.find('Orientation')==-1]
     alljoint_z = [idx for idx,x in enumerate(header) if (x.endswith('z'))\
     and x.find('Orientation')==-1]
-    # Reference    
+    
+    # Reference
     spine=header.index('SPINE_x')
     shldr=header.index('SHOULDER_CENTER_x')
     # The spine is the origin. subtract the coordinate of spine from the 
@@ -214,7 +216,7 @@ def readallfiles_concat(startPath,suffix,decimateratio,invariant=True,\
                     allData = dat.copy()
                     boundDic[fullPath]=(0,datLen)
                 else:
-                    boundDic[fullPath]=(len(allData),len(allData)+datLen)                    
+                    boundDic[fullPath]=(len(allData),len(allData)+datLen) 
                     allData = vcat(allData,dat)
     return allData,boundDic,header
 
@@ -291,9 +293,9 @@ def writeAll(outfilename,style,inputpath='Data/',\
 def toyExample_medium():
     alpha = np.zeros((256,1))
     alpha[35] = 0.5
-    alpha[140] = -0.5
+    alpha[140] = 0.5
     alpha[160] = 1
-    alpha[220] = -1
+    alpha[220] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = np.sin(xVal)
@@ -304,9 +306,9 @@ def toyExample_medium():
 def toyExample_medium_boostHighFreq():
     alpha = np.zeros((256,1))
     alpha[35] = 0.5
-    alpha[140] = -0.5
+    alpha[140] = 0.5
     alpha[160] = 1
-    alpha[220] = -1
+    alpha[220] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = 0.5*np.sin(xVal)
@@ -317,25 +319,27 @@ def toyExample_medium_boostHighFreq():
 def toyExample_medium_boostLowFreq():
     alpha = np.zeros((256,1))
     alpha[35] = 0.5
-    alpha[140] = -0.5
+    alpha[140] = 0.5
     alpha[160] = 1
-    alpha[220] = -1
+    alpha[220] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),3,1))
     psi[:,0,0] = 2*np.sin(xVal)
     psi[:,1,0] = np.sin(2*xVal-np.pi)
     psi[:,2,0] = 0.5*np.sin(4*xVal-np.pi/4)
     return alpha,psi
-# Generate and return a toy data
-def toyExample_medium_1d():
-    alpha = np.zeros((256,1))
-    alpha[35] = 0.5
-    alpha[140] = -0.5
-    alpha[160] = 1
-    alpha[220] = -1
-    xVal = np.linspace(-1,1,32)*np.pi
-    psi = np.zeros((len(xVal),1,1))
-    psi[:,0,0] = np.sin(xVal)
+# Generate and return a toy data similar to the real life dataset
+def toyExample_reallike(N=4096,M=64):
+    D = 8
+    K = 60
+    alpha = np.zeros((N,D))
+    psi = np.zeros((M,K,D))
+    xVal = np.linspace(-1,1,M)*np.pi
+    for d in xrange(D):
+        alpha[[int(x) for x in np.random.rand(5)*(N-1)],d]=1.
+    for d in xrange(D):
+        for k in xrange(K):
+            psi[:,k,d] = 2.0*np.sin(xVal*(d+1)/D + 1.0*k/K*np.pi)
     return alpha,psi
 # Generate and return a toy data
 def toyExample_medium_1d_multicomp():
@@ -344,14 +348,14 @@ def toyExample_medium_1d_multicomp():
     alpha[100,0] = 1
     alpha[125,0] = 1
     alpha[175,0] = 1
-    alpha[230,0] = -1
-    alpha[50,1] = -0.5
+    alpha[230,0] = 1
+    alpha[50,1] = 0.5
     alpha[100,1] = 1
-    alpha[150,1] = -1
+    alpha[150,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
     psi = np.zeros((len(xVal),1,2))
-    psi[:,0,0] = np.cos(xVal/2.0)
+    psi[:,0,0] = -1*np.cos(xVal/2.0)
     psi[:,0,1] = np.pi - np.abs(xVal)
     #psi[:,0,2] = np.greater_equal(np.pi/2.,np.abs(xVal))
     return alpha,psi
@@ -360,12 +364,12 @@ def toyExample_medium_3d_multicomp():
     alpha = np.zeros((256,2))
     alpha[35,0] = 0.5
     alpha[180,0] = 1
-    alpha[140,0] = -0.5
+    alpha[140,0] = 0.5
     alpha[160,0] = 1
-    alpha[220,0] = -1
+    alpha[220,0] = 1
     alpha[50,1] = 1
     alpha[75,1] = 0.5
-    alpha[100,1] = -0.5
+    alpha[100,1] = 0.5
     alpha[160,1] = 1
     alpha[200,1] = 1
     xVal = np.linspace(-1,1,32)*np.pi
@@ -377,6 +381,29 @@ def toyExample_medium_3d_multicomp():
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+# A deceitful dataset where the addition of two components result in
+# a signal orthogonal to the components. 
+def toyExample_orthogonal_3d_multicomp():
+    alpha = np.zeros((256,2))
+    alpha[35,0] = 0.5
+    alpha[180,0] = 1
+    alpha[140,0] = 0.5
+    alpha[160,0] = 1
+    alpha[220,0] = 1
+    alpha[50,1] = 1
+    alpha[75,1] = 0.5
+    alpha[100,1] = 0.5
+    alpha[160,1] = 1
+    alpha[200,1] = 1
+    xVal = np.linspace(-1,1,32)*np.pi
+    psi = np.zeros((len(xVal),3,2))
+    psi[:,0,0] = 0.5*np.sin(4*xVal) - np.sin(xVal)
+    psi[:,1,0] = 0.5*np.sin(4*(xVal+np.pi/6)) - np.sin(xVal+np.pi/6)
+    psi[:,2,0] = 0.5*np.sin(4*(xVal+np.pi/4)) - np.sin(xVal+np.pi/4)
+    psi[:,0,1] = np.sin(xVal)
+    psi[:,1,1] = np.sin(xVal+np.pi/6)
+    psi[:,2,1] = np.sin(xVal+np.pi/4)
+    return alpha,psi    
 # Generate and return a toy data
 def toyExample_orthogonal_3d_multicomp():
     alpha = np.zeros((256,2))
@@ -402,8 +429,10 @@ def toyExample_orthogonal_3d_multicomp():
 # Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
-    alpha[np.random.rand(N)>0.95,0]=1.0
-    alpha[np.random.rand(N)>0.95,1]=1.0
+    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],0]=\
+    5*np.random.rand(10)
+    alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],1]=\
+    5*np.random.rand(10) 
     xVal = np.linspace(-1,1,M)*np.pi
     psi = np.zeros((len(xVal),3,2))
     psi[:,0,0] = np.sin(xVal)
@@ -413,6 +442,7 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+
 ############################## Test Modules ####################################
 # Read, subsample, clean and concatenate all the data and save as mat file
 def unitTest1(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
@@ -451,7 +481,7 @@ def unitTest4():
     csvDat,header = readdatafile('Data/20.2.csv')
     # Subsample by a ratio of 5, clean and split the data
     dat,datHead = splitcsvfile(calcinvarient(clean(subsample(csvDat,\
-                                            header,5))[0],header),header)[:2]    
+                                            header,5))[0],header),header)[:2]
     gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
     gui.show()
 # Calculate the average pose from the whole dataset    
@@ -499,5 +529,5 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest1()
+    unitTest2()
     #unitTest5()

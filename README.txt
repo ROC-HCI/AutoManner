@@ -4,7 +4,4 @@ Automatic Analysis of Human Behavior
     Rochester Human-Computer Interaction (ROCHCI)
     University of Rochester
 -------------------------------------------------------------------------------
-Please run/check analyze-gd-concat.py
-
-analyze-dg-separate.py is still not working
-
+Please run/check runDemo.sh
