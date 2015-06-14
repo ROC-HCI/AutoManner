@@ -111,30 +111,22 @@ def clean(csvData,nSecBegin = 5,nSecEnd = 5):
 # It only works on joint coordinates
 def calcinvarient(csvdata,header):
     # skeletal joints
-    alljoint_x = [idx for idx,x in enumerate(header) if (x.endswith('x'))\
-    and x.find('Orientation')==-1]
-    alljoint_y = [idx for idx,x in enumerate(header) if (x.endswith('y'))\
-    and x.find('Orientation')==-1]
-    alljoint_z = [idx for idx,x in enumerate(header) if (x.endswith('z'))\
-    and x.find('Orientation')==-1]
-    
+    alljoint_x = range(2,101,5)
+    alljoint_y = range(3,101,5)
+    alljoint_z = range(4,101,5)
+
     # Reference
-    spine=header.index('SPINE_x')
-    shldr=header.index('SHOULDER_CENTER_x')
+    leftfoot=header.index('FOOT_LEFT_x')
+    rightfoot=header.index('FOOT_RIGHT_x')
+    ref_x = (csvdata[:,leftfoot][None].T + csvdata[:,rightfoot][None].T)/2.0
+    ref_y = (csvdata[:,leftfoot+1][None].T + csvdata[:,rightfoot+1][None].T)/2.0
+    ref_z = (csvdata[:,leftfoot+2][None].T + csvdata[:,rightfoot+2][None].T)/2.0    
     # The spine is the origin. subtract the coordinate of spine from the 
     # coordinates of all the joints in the skeleton
-    csvdata[:,alljoint_x]=csvdata[:,alljoint_x]-csvdata[:,spine][None].T.\
-                                        dot(np.ones((1,len(alljoint_x))))
-    csvdata[:,alljoint_y]=csvdata[:,alljoint_y]-csvdata[:,spine+1][None].T.\
-                                        dot(np.ones((1,len(alljoint_y))))
-    csvdata[:,alljoint_z]=csvdata[:,alljoint_z]-csvdata[:,spine+2][None].T.\
-                                        dot(np.ones((1,len(alljoint_z))))
-    # Scale the skeleton so that the spine length becomes unity
-    spineVector = csvdata[:,shldr:shldr+3]
-    spineVecLen = np.linalg.norm(spineVector,axis=1)[None].T
-    csvdata[:,alljoint_x] = csvdata[:,alljoint_x]/spineVecLen
-    csvdata[:,alljoint_y] = csvdata[:,alljoint_y]/spineVecLen
-    csvdata[:,alljoint_z] = csvdata[:,alljoint_z]/spineVecLen
+    csvdata[:,alljoint_x]=csvdata[:,alljoint_x]-ref_x
+    csvdata[:,alljoint_x]=csvdata[:,alljoint_y]-ref_y
+    csvdata[:,alljoint_x]=csvdata[:,alljoint_z]-ref_z
+    
     return csvdata
     
 # Given the contents of the animation data file, it returns the following:
@@ -529,5 +521,5 @@ def unitTest6():
     print 'done'    
 
 if __name__ == '__main__':
-    unitTest2()
-    #unitTest5()
+    #unitTest1_sep()
+    unitTest5()
