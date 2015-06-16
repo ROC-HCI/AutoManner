@@ -24,10 +24,9 @@ import time
 def buildArg():
     args = ArgumentParser(description="Automatic Extraction of Human Behavior")
 
-    args.add_argument('-i',nargs='?',default='Data/all_skeletal_Data.mat',\
-    metavar='INPUT_MAT_FILENAME',\
-    help='A mat file containing all the data concatenated into matrix. \
-    or a list of csv files from where the data has to be read\
+    args.add_argument('-i',nargs='*',default='Data/13.3.csv',\
+    metavar='INPUT_FILES',\
+    help='CSV file(s) containing the seleton movements\
     (default: %(default)s)')
     
     args.add_argument('-o',nargs='?',default='Results/result',\
@@ -59,13 +58,9 @@ def buildArg():
     help='Threshold of difference in log objective function\
     (termination criteria) (default:%(default)s)')
     
-    args.add_argument('-M',nargs='?',type=int,default=-2,\
+    args.add_argument('-M',nargs='?',type=int,default=64,\
     metavar='ATOM_LENGTH',\
-    help='The length of atomic units (psi). IOW, the size of each \
-    element of the dictionary. Must be a power of 2. (default: %(default)s)\
-    A negative number indicates the system will automatically choose a\
-    length which is approximately equvalent to abs(M) sec. Does not have\
-    any effect on toy data')
+    help='The length of atomic units (psi)')
     
     args.add_argument('-D',nargs='?',type=int,default=16,\
     metavar='DICTIONARY_LENGTH',\
@@ -73,7 +68,7 @@ def buildArg():
     number of elements in the dictionary (default: %(default)s). Does not have\
     any effect on toy data')
     
-    args.add_argument('-Beta',nargs='?',type=float,default=3e-5,\
+    args.add_argument('-Beta',nargs='?',type=float,default=0.1,\
     metavar='NON-SPARSITY_COST',\
     help='Represents the cost of nonsparsity. The higer the cost, the \
     sparser the occurances of the dictionary elements.')
@@ -158,13 +153,12 @@ def toyTest(args):
 
 # Work with real data
 def realTest(args):
-    allData = sio.loadmat(args.i)
-    X = fio.getjointdata(allData['data'],range(20))
+    if len(args.i)>1:
+        print 'Currently SISC takes only one data file'
+        return
+    data,header,tx,th,ht = fio.preprocess(args.i[0])
+    X = data[:,2:]
     
-    # Choose the correct length of psi if M is negative
-    if args.M<0:
-        args.M = nextpow2(np.argmax(allData['data'][:,0]>30*M.fabs(args.M)))
-
     # Pad the data to make it power of two and then 
     # apply Convolutional Sparse Coding
     numZeros = (nextpow2(len(X))-len(X))
@@ -177,13 +171,11 @@ def realTest(args):
     
     # Save the results
     resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
-        str(args.Beta)+'_'+'_'.join(args.j)+'_'+time.strftime(\
-        '%H_%M_%S',time.localtime())
+        str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
     sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
     'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
-    'M':args.M,'D':args.D,'Beta':args.Beta,'Header':\
-    allData['dataHead'],'timeData':allData['data'][:,0:2],\
-    'decimateratio':allData['decimateratio'],'SNR':SNR,'Data_Origin':'Real'})
+    'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,
+    'Data':data,'header':header,'tx':tx,'th':th,'ht':ht,'Data_Origin':'Real'})
         
 ################################ Main Entrance ################################
 

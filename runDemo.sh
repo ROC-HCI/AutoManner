@@ -11,7 +11,7 @@
 
 # 3D signal (length=256) with two components
 # ------------------------------------------
- python sisc_wrapper.py -toy 6 --Disp -M 32 -Beta 0.1 -D 2
+# python sisc_wrapper.py -toy 6 --Disp -M 32 -Beta 0.1 -D 2
 
 # Large 3D signal. 10 samples in each alpha component are randomly activated
 # --------------------------------------------------------------------------
@@ -26,6 +26,11 @@
 #  python sisc_wrapper.py -toy 4 --Disp -M 64 -Beta 0.01 -D 8
 ########################################################################
 
+########################################################################
+##################### OPTIMIZER DEMO WITH A REAL DATA ##################
+########################################################################
+# One datafile at a time
+python sisc_wrapper.py -Beta 0.035 -iter_thresh 100 -i 'Data/13.3.csv'
 
 
 ########################################################################
@@ -52,5 +57,6 @@
 # Plot an L curve
 # python filter.py Results/*.mat --Lcurve
 
-
+# Show a skeleton animation
+# python skelplot_mayavi.py Data/13.1.csv
 ########################################################################

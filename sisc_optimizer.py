@@ -226,14 +226,18 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
     while iter < iter_thresh:
         itStartTime = time.time()
         print str(iter),
+        if iter<=5:
+            initLR = N/2
+        else:
+            initLR = 16
         # Update psi
         # ==========
         # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X,workers)
         currentcost = logcost(X,alpha,psi,beta,workers)
         #gamma_psi,setZero = math.sqrt(iter+1),False
-        gamma_psi,setZero = N/2,False
-        for trialno in xrange(int(math.ceil(math.log(N,2)))+2):
+        gamma_psi,setZero = initLR,False
+        for trialno in xrange(int(math.ceil(math.log(initLR,2)))+10):
             newPsi = projectPsi(psi - gamma_psi*grpsi/N,1.0)
             if logcost(X,alpha,newPsi,beta,workers) < currentcost:
                 psi = newPsi.copy()
@@ -253,8 +257,8 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
         # fail consecutively, just set it to zero.
         currentcost = logcost(X,alpha,psi,beta,workers)
         #gamma_alpha,setZero = math.sqrt(iter+1),False
-        gamma_alpha,setZero = N/2,False
-        for trialno in xrange(int(math.ceil(math.log(N,2)))+2):
+        gamma_alpha,setZero = initLR,False
+        for trialno in xrange(int(math.ceil(math.log(initLR,2)))+5):
             newAlpha = shrink(alpha - gamma_alpha*gralpha/N,gamma_alpha*beta/N)
             if logcost(X,newAlpha,psi,beta,workers) < currentcost:
                 alpha = newAlpha.copy()
@@ -308,10 +312,7 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
             countZero = 0        
         # zero tolerance on increasing cost
         assert(prevcost<=cost)
-
         
     reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)
     return alpha,psi,cost,reconError,L0,SNR
-
-

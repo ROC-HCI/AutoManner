@@ -1,6 +1,5 @@
 from mayavi import mlab
 import numpy as np
-import fileio as fio
 from math import sqrt
 
 # Bone-Joint coordinate calculator
@@ -18,7 +17,7 @@ def animateSkeleton(data,delay=50,azim=0,elev=180,ro=0):
     @mlab.animate(delay=delay)
     def anim():
         while True:
-            for aframe in data:
+            for frno,aframe in enumerate(data):
                 f=mlab.gcf()
                 f.scene.disable_render=True
                 # Change the Joint coordinates
@@ -65,9 +64,12 @@ def drawskel(rowdata,azim=0,elev=180,ro=0,showIt=True):
     return skeljoints,skelbone
 
 def main():
-    data,dataheader=fio.splitcsvfile(*fio.readdatafile('Data/13.3.csv'))[0:2]
+    import fileio as fio
+    import sys
+    print sys.argv[1]
+    data = fio.preprocess(sys.argv[1])[0]
     animateSkeleton(data)
-    #drawskel(data[0,:])
-    
-if __name__=='__main__':
+
+
+if __name__ == '__main__':
     main()

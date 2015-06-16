@@ -29,17 +29,17 @@ readskeletaltree
 readallfiles_concat
 readallfiles_separate
 writeAll
-readdatafile            --> (csvData output)
-|    subsample          --> (csvData output) [call before clean]
-|    clean              --> (csvData output)
-|    calcinvarient      --> (csvData output) [call after clean]
+rdstartstop             --> start stop frame number
+readdatafile            --> (data output)
+|    subsample          --> (data output) [call before clean]
+|    clean              --> (data output)
+|    calcinvarient      --> (data output) [call after clean]
 |    splitcsvfile       --> (data output)
-|    |    pad           --> (data output)
-|    |    vcat          --> (data output)
-|    |    getjointdata  --> (X output)
-|    |    |                                                               
-|    |    (data input)
-|    (csvData input)
+|    pad                --> (data output)
+|    vcat               --> (data output)
+|    getjointdata       --> (X output)
+|    |                                                               
+|    (data input)
 (file/folder level input)
 
 -------------------------------------------------------------------------------
@@ -53,6 +53,8 @@ import os
 import skeletonPlotter as sp
 import scipy.io as sio
 import scipy.signal as sg
+import skelplot_mayavi as skplt
+import math
 ############################## Convenience ####################################
 # TODO: change arguments to all lower case
 
@@ -70,7 +72,7 @@ def readskeletaltree(treeFilename):
                                                             ).astype(np.int)
         return nodes,edges
 
-# Reads the joint position (animation) data file (csv) for the skeleton 
+# Reads the data file (10.1.csv etc.) for the skeleton 
 # returns the contents of the csv file and the headers for each column
 def readdatafile(csvFileName):
     # read datafile
@@ -78,73 +80,86 @@ def readdatafile(csvFileName):
         header = f.readline().split(',')[0:-1]
         csvData = [x.split(',') for x in f.readlines()]
         csvData = np.array([x[0:-1] for x in csvData]).astype(np.float)
-    return csvData,header
+    scnIdx=[i for i,x in enumerate(header) if x == 'ScreenX' or x == 'ScreenY']
+    datIdx = [x for x in range(scnIdx[-1]+1) if x not in scnIdx]
+    data = csvData[:,datIdx] 
+    data_header = [header[L] for L in datIdx]
+    return data,data_header
 
-# subsample the animation data. The first two columns (Timeframe and Timestamp)
+# subsample the data. The first two columns (Timeframe and Timestamp)
 # are automatically adjusted.
 # Note: subsampling involves applying low pass filter and then decimate. Low
 # pass filter introduces ripple effect at the boundaries of the signal.
 # Therefore, it is suggested to apply subsample before cleaning the data
-def subsample(csvdata,header,decimateratio):
+def subsample(data,decimateratio):
     noFilterCols = [0,1]
-    noFilterCols.extend([idx for idx,x in enumerate(header) \
-                                        if x=='Start_Joint' or x=='End_Joint'])
-    filtCols = [idx for idx in range(len(header)) if not idx in noFilterCols]
-    nofiltDat = csvdata[::decimateratio,noFilterCols]
-    sampledCSVdata = np.zeros((len(nofiltDat),np.size(csvdata,axis=1)))
+    filtCols = range(2,np.size(data,axis=1))
+    nofiltDat = data[::decimateratio,noFilterCols]
+    sampledCSVdata = np.zeros((len(nofiltDat),np.size(data,axis=1)))
     sampledCSVdata[:,noFilterCols] = nofiltDat
-    sampledCSVdata[:,filtCols] = sg.decimate(csvdata[:,filtCols],\
+    sampledCSVdata[:,filtCols] = sg.decimate(data[:,filtCols],\
                                                     decimateratio,axis=0)
     return sampledCSVdata
 
-# Delete the nSecBegin seconds from the begining and nSecEnds seconds from
-# the end because that is usually garbage. The actual crop positions
-# may vary but it will be returned as cropBoundStart,cropBoundEnd
-def clean(csvData,nSecBegin = 5,nSecEnd = 5):
-    cropBoundStart = np.argmax(csvData[:,1]>nSecBegin*1000)
-    cropBoundEnd = np.argmax(csvData[:,1]>(csvData[-1,1] - nSecEnd*1000))
-    csvData = csvData[cropBoundStart:cropBoundEnd,:]
-    csvData[:,:2] = csvData[:,:2] - csvData[0,:2]
-    return csvData,cropBoundStart,cropBoundEnd
+# crop the data that falls within the [stframe,enframe] range
+def clean(data,stframe,enframe):
+    idx = (data[:,0]>=stframe)*(data[:,0]<=enframe)
+    data = data[idx,:]
+    return data
 
 # Calculates invarient feature by translating the origin in the body
 # It only works on joint coordinates
-def calcinvarient(csvdata,header):
-    # skeletal joints
-    alljoint_x = range(2,101,5)
-    alljoint_y = range(3,101,5)
-    alljoint_z = range(4,101,5)
+# Foot_left = 15 and Foot_Right = 19 
+# HIP_LEFT = 12 and HIP_RIGHT = 16
+def calcinvarient(data):
+    # Translation Invaariance
+    # =======================
+    # Origin is set to the average of left and right foot
+    ref_x,ref_y,ref_z = ((data[:,2+15*3] + data[:,2+19*3])/2.)[None].T,\
+                        ((data[:,3+15*3] + data[:,3+19*3])/2.)[None].T,\
+                        ((data[:,4+15*3] + data[:,4+19*3])/2)[None].T
+    data[:,2::3] = data[:,2::3] - ref_x # x component
+    data[:,3::3] = data[:,3::3] - ref_y # y component
+    data[:,4::3] = data[:,4::3] - ref_z # z component
 
-    # Reference
-    leftfoot=header.index('FOOT_LEFT_x')
-    rightfoot=header.index('FOOT_RIGHT_x')
-    ref_x = (csvdata[:,leftfoot][None].T + csvdata[:,rightfoot][None].T)/2.0
-    ref_y = (csvdata[:,leftfoot+1][None].T + csvdata[:,rightfoot+1][None].T)/2.0
-    ref_z = (csvdata[:,leftfoot+2][None].T + csvdata[:,rightfoot+2][None].T)/2.0    
-    # The spine is the origin. subtract the coordinate of spine from the 
-    # coordinates of all the joints in the skeleton
-    csvdata[:,alljoint_x]=csvdata[:,alljoint_x]-ref_x
-    csvdata[:,alljoint_x]=csvdata[:,alljoint_y]-ref_y
-    csvdata[:,alljoint_x]=csvdata[:,alljoint_z]-ref_z
+    # Rotation Invariance
+    # ===================
+    # Represent the data in 3D format
+    m,n = np.shape(data)
+    dat3d = np.reshape(data[:,2:],(m,(n-2)/3,3))
+    leftH = dat3d[:,12,:]
+    rightH = dat3d[:,16,:]
+    hipVec = leftH - rightH
+    hipVec = hipVec/np.linalg.norm(hipVec,axis=1)[None].T
+    # Unit vector towards hipVec 90 rotated counterclockwise about y axis
+    rotcc90=np.array([[0,0,-1],[0,1,0],[1,0,0]])
+    uorient = rotcc90.dot(hipVec.T).T
+    # cosangle between -x axis and uorient projected on xz plane
+    cos_posx = (-1*uorient[:,0])/np.linalg.norm(uorient[:,[0,2]],axis=1)
+    #th = np.arccos(cos_negz)*np.sign(cos_posx)
+    th = np.arccos(cos_posx) - np.pi/2
+    for i in range(len(th)):
+        invrot = np.array([[np.cos(th[i]),0,np.sin(th[i])],[0,1,0],\
+        [-1*np.sin(th[i]),0,np.cos(th[i])]])
+        dat3d[i,:,:]=invrot.dot(dat3d[i,:,:].T).T
+    data[:,2:]=np.reshape(dat3d,(m,n-2))
     
-    return csvdata
-    
-# Given the contents of the animation data file, it returns the following:
-# data, data_header, Orientation, Orien_Head, ScreenXY, ScreenXY_header
-# The contents of the animation data file should be read using the function
-# readdatafile. Output of this function can be fed directly to this function
-def splitcsvfile(csvData,header):
-    # Read indices
-    scnIdx=[i for i,x in enumerate(header) if x == 'ScreenX' or x == 'ScreenY']
-    orientIdx = range(scnIdx[-1]+1,len(header))
-    datIdx = [x for x in range(scnIdx[-1]+1) if x not in scnIdx]
-    data = csvData[:,datIdx] 
-    data_header = [header[L] for L in datIdx]
-    orient = csvData[:,orientIdx]
-    orient_header = [header[L] for L in orientIdx]
-    screenxy = csvData[:,scnIdx]
-    screenxy_header = [header[L] for L in scnIdx]
-    return data,data_header,orient,orient_header,screenxy,screenxy_header
+    # Scale Invariance
+    # ================
+    height = np.linalg.norm(dat3d[:,3,:],axis=1)   # Head = 3
+    data[:,2:]=data[:,2:]/height[None].T
+    return data,np.concatenate((ref_x,ref_y,ref_z),axis=1),th,height
+
+# Read the start and end frame numbers for each speach
+def rdstartstop(labeldataFile='Data/labeldata.csv'):
+    with open(labeldataFile,'r') as readfile:
+        alldata = readfile.readlines()
+        alldata = alldata[0].split('\r')
+        startframes = {item.split(',')[0]:int(item.split(',')[1]) \
+        for item in alldata}
+        endframes = {item.split(',')[0]:int(item.split(',')[3]) \
+        for item in alldata}
+    return startframes, endframes
     
 # returns the x,y,z columns for the specified joint locations only
 def getjointdata(data,joints):
@@ -180,106 +195,14 @@ def vcat(dat1,dat2):
     dat2[:,:2]+=dat1[-1,:2]
     return np.concatenate((dat1[:-1,:],dat2),axis=0)
 
-## Reads all the skeleton tracking file in a folder and concatenates into one.
-# This function subsamples and cleans the data before concatenating into a
-# giant time series
-def readallfiles_concat(startPath,suffix,decimateratio,invariant=True,\
-                                            nPad=150,nSecBegin=5,nSecEnd=5):
-    firstIter = True
-    boundDic = {}
-    for root,folder,files in os.walk(startPath):
-        for afile in files:
-            if afile.lower().endswith(suffix.lower()):
-                # create full filename and print
-                fullPath = os.path.join(root,afile)
-                print fullPath
-                # Read file. 
-                csvdat,header = readdatafile(fullPath)                
-                # Clean and pad with zeros
-                dat = clean(subsample(csvdat,header,decimateratio)\
-                                                        ,nSecBegin,nSecEnd)[0]
-                if invariant:
-                    dat = calcinvarient(dat,header)
-                datLen=len(dat)
-                dat = pad(dat,nPad)
-                # Concatenate the data
-                if firstIter:
-                    firstIter = False
-                    allData = dat.copy()
-                    boundDic[fullPath]=(0,datLen)
-                else:
-                    boundDic[fullPath]=(len(allData),len(allData)+datLen) 
-                    allData = vcat(allData,dat)
-    return allData,boundDic,header
+# Read a single file and preprocess accordingly
+def preprocess(filename,stenfile='Data/labeldata.csv'):
+    data,header = readdatafile(filename)
+    stfr,enfr = rdstartstop(stenfile)
+    data = clean(data,stfr[filename[-8:-4]],enfr[filename[-8:-4]])
+    data,tx,th,ht = calcinvarient(data)
+    return data,header,tx,th,ht
 
-## Reads all the skeleton tracking file in a folder and concatenates into one.
-# This function subsamples and cleans the data before concatenating into a
-# giant time series
-def readallfiles_separate(startPath,suffix,decimateratio,invariant=True,\
-                                            nPad=150,nSecBegin=5,nSecEnd=5):
-    csvDataList = []
-    filenamelist = []
-    for root,folder,files in os.walk(startPath):
-        for afile in files:
-            if afile.lower().endswith(suffix.lower()):
-                # create full filename and print
-                fullPath = os.path.join(root,afile)
-                print fullPath
-                # Read file. 
-                csvdat,header = readdatafile(fullPath)                
-                # Clean and pad with zeros
-                csvdat = clean(subsample(csvdat,header,decimateratio)\
-                                                        ,nSecBegin,nSecEnd)[0]
-                if invariant:
-                    csvdat = calcinvarient(csvdat,header)
-                csvDataList.append(csvdat)
-                filenamelist.append(fullPath)
-    return csvDataList,filenamelist,header
-
-# Writes all the data as input mat file. style can take either 'concat' or
-# 'separate'. Before writing, this function subtracts the mean
-def writeAll(outfilename,style,inputpath='Data/',\
-    meanfile = 'Data/meanSkel.mat',decimateRatio=5):
-    assert style=='concat' or style=='separate'
-    meandata = sio.loadmat(meanfile)
-
-    if style == 'concat':
-        # Read all the files and split
-        csvDat,boundDic,header = readallfiles_concat(inputpath,'.csv',\
-                        decimateRatio,True)
-        data,dataHead = splitcsvfile(csvDat,header)[:2]
-        #Subtract mean
-        data = data - meandata['avgSkel']
-        # Save the data in matlab format
-        sio.matlab.savemat(outfilename,\
-        {'csvDat':csvDat,'header':header,'data':data,'dataHead':dataHead,\
-        'decimateratio':decimateRatio,'invariant':True,'nPad':150,\
-        'nSecBegin':5,'nSecEnd':5,'style':style})
-        sio.matlab.savemat(outfilename+'_bound.mat',boundDic)
-        print 'Data Saved'
-    else:
-        csvlist,filenamelist,header = readallfiles_separate(inputpath,'.csv',\
-                        decimateRatio,True)
-        datDic={}
-        data=[]
-        for i,csvDat in enumerate(csvlist):
-            datDic['csvDat_'+str(i)]=csvDat
-            datDic['data_'+str(i)]=splitcsvfile(csvDat,header)[0]
-            data.append(datDic['data_'+str(i)])
-        dataHead = splitcsvfile(csvDat,header)[1]
-        datDic['header']=header
-        datDic['filenamelist']=filenamelist
-        datDic['dataHead']=dataHead
-        datDic['decimateratio']=decimateRatio
-        datDic['invariant']=True
-        datDic['nSecBegin']=5
-        datDic['nSecEnd']=5
-        datDic['style']=style
-        # Save the data in matlab format
-        sio.matlab.savemat(outfilename,datDic)
-        print 'Data Saved'
-    return data,dataHead
-    
 ############################## Toy dataset ####################################
 # Generate and return a toy data
 def toyExample_medium():
@@ -436,52 +359,14 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     return alpha,psi
 
 ############################## Test Modules ####################################
-# Read, subsample, clean and concatenate all the data and save as mat file
-def unitTest1(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
-    bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
-    data,dataHead = writeAll(outfilename,'concat','Data/',\
-    'Data/meanSkel.mat',5)
-    #Animate data
-    gui = sp.plotskeleton(data,dataHead,bones,skipframes=0)
-    gui.show()
-# Read, subsample, clean all the data but keep them separate
-def unitTest1_sep(outfilename='Data/skeletal_Data_inv_subsampled_separate.mat'):
-    data,dataHead = writeAll(outfilename,'separate','Data/',\
-    'Data/meanSkel.mat',5)
-    pass
-# load matfile -- test of getjointdata (returns the x,y,z columns for the
-#    specified joint locations only). Not particularly useful
-def unitTest2():
-    allData = sio.loadmat('Data/all_skeletal_Data.mat')
-    joints,_ = readskeletaltree('Data/KinectSkeleton.tree')
-    X,datHead = getjointdata(allData['data'],(joints['SHOULDER_RIGHT'],\
-    joints['ELBOW_RIGHT'],joints['WRIST_RIGHT'],joints['HAND_RIGHT']),\
-    allData['dataHead'])
-    print np.shape(X)
-    pass
-# Animate/Plot cleaned and invariant data
-def unitTest3():
-    bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
-    csvDat,header = readdatafile('Data/20.2.csv')
-    dat,datHead = splitcsvfile(calcinvarient(clean(csvDat)[0],header),\
-                                                            header)[:2]
-    gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
-    gui.show()
-# Animate/Plot subsampled, cleaned, and invariant data
-def unitTest4():
-    bones = readskeletaltree('Data/KinectSkeleton.tree')[1]
-    csvDat,header = readdatafile('Data/20.2.csv')
-    # Subsample by a ratio of 5, clean and split the data
-    dat,datHead = splitcsvfile(calcinvarient(clean(subsample(csvDat,\
-                                            header,5))[0],header),header)[:2]
-    gui = sp.plotskeleton(dat,datHead,bones,jointid1=2,skipframes=0)
-    gui.show()
-# Calculate the average pose from the whole dataset    
-def unitTest5():
-    csvlist,filenamelist,header = readallfiles_separate('Data/',\
-    suffix='.csv',decimateratio=5,invariant=True)
-    firsttime=True
-    count=0.
+# Read, clean, make invariant and animate
+def unitTest1(datafile='Data/13.3.csv'):
+    data,header=readdatafile(datafile)
+    data = calcinvarient(data)[0]
+    skplt.animateSkeleton(data)
+# Calculate the average pose from the whole dataset. invariant represents if the
+# data should be made invariant or not    
+def unitTest5(allfiles,invariant=True):
     # to remove the weight of each video length, we calculate the average of
     # the average
     for acsv in csvlist:
@@ -497,29 +382,10 @@ def unitTest5():
     header = splitcsvfile(acsv,header)[1]
     sio.savemat('Data/meanSkel.mat',{'avgSkel':avgSkel,'header':header})
     print 'done'
-# Calculate per person average
-def unitTest6():
-    csvlist,filenamelist,csvheader = readallfiles_separate('Data/',\
-                    suffix='.csv',decimateratio=5,invariant=True)
-    oldperid = int(filenamelist[0][-8:-6])
-    sumdat=0
-    count=0
-    for id,acsv in enumerate(csvlist):
-        data,header = splitcsvfile(acsv,csvheader)[:2]
-        perid = int(filenamelist[id][-8:-6])
-        if not (oldperid == perid):
-            avgSkel = sumdat/count
-            avgSkel[0:2]=0    
-            sio.savemat('Data/meanSkel_'+str(oldperid)+'.mat',\
-                        {'avgSkel':avgSkel,'header':header})
-            oldperid=perid
-            sumdat=0
-            count=0
-        else:
-            sumdat = sumdat + np.sum(data,axis=0)
-            count = count + len(data)
-    print 'done'    
-
-if __name__ == '__main__':
-    #unitTest1_sep()
-    unitTest5()
+def main():
+    data,dataheader=preprocess('Data/13.3.csv')[0:2]
+    skplt.animateSkeleton(data)
+    #drawskel(data[0,:])
+    
+if __name__=='__main__':
+    main()
