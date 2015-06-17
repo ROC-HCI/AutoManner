@@ -10,6 +10,12 @@ def __joints(datarow,jointList):
 # Animates a skeleton based on data (output of splitcsvfile in fileio.py).
 # Expects multiple rows
 def animateSkeleton(data,delay=50,azim=0,elev=180,ro=0):
+    m,n = np.shape(data)
+    if n == 60:
+        timcols = np.zeros((m,2))
+        timcols[:,0]=np.arange(float(m))
+        timcols[:,1]=timcols[:,0]*30
+        data = np.concatenate((timcols,data),axis=1)
     # Draw a single skeleton first
     skeljoints,skelbone = drawskel(data[0,:],azim=0,elev=180,ro=0,showIt=False)
     # Make the skeleton move

@@ -26,11 +26,12 @@
 #  python sisc_wrapper.py -toy 4 --Disp -M 64 -Beta 0.01 -D 8
 ########################################################################
 
+
 ########################################################################
 ##################### OPTIMIZER DEMO WITH A REAL DATA ##################
 ########################################################################
 # One datafile at a time
-python sisc_wrapper.py -Beta 0.035 -iter_thresh 100 -i 'Data/13.3.csv'
+# python sisc_wrapper.py -Beta 0.035 -i 'Data/13.3.csv'
 
 
 ########################################################################
@@ -49,6 +50,7 @@ python sisc_wrapper.py -Beta 0.035 -iter_thresh 100 -i 'Data/13.3.csv'
 # --------------------------------------------------------------------------
 # python filter.py Results/*.mat -nlo cost
 # python filter.py Results/*.mat -hi SNR
+#
 # The following command will delete all the files with Beta = 0.06 and cost is
 # not minimum
 # ----------------------------------------------------------------------------
@@ -59,4 +61,7 @@ python sisc_wrapper.py -Beta 0.035 -iter_thresh 100 -i 'Data/13.3.csv'
 
 # Show a skeleton animation
 # python skelplot_mayavi.py Data/13.1.csv
+
+# Show the results (psi and alpha)
+python filter.py --showresults Results/*.mat
 ########################################################################

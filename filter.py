@@ -11,6 +11,8 @@ import os
 import scipy.io as sio
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+import skelplot_mayavi as splt
 
 def plotLcurve(args):
     LplotDat = []
@@ -64,7 +66,44 @@ def buildArg():
         values of this parameter')
     pars.add_argument('--Lcurve',action='store_true',help='Command to\
         draw an L curve')
+    pars.add_argument('--showresults',action='store_true',help='Command to\
+        plot the patterns (psi) and corresponding activation sequences (alpha).\
+        If multiple files are given, it chooses one with minimum L0*exp(cost).')
     return pars
+
+def showresults(args):
+    for idx,afile in enumerate(args.Files):
+        if afile.lower().endswith('.mat'):
+            allData = sio.loadmat(afile)
+            L0 = allData['L0']
+            cost = allData['cost']
+            mult = L0*math.exp(cost)
+            if idx==0:
+                lowmult = mult
+                bestFile = afile
+            elif mult<lowmult:
+                lowmult = mult
+                bestFile = afile
+    allData = sio.loadmat(bestFile)
+    # Print nonzero component indices
+    sumAlpha = np.sum(allData['alpha_recon'],axis=0)
+    validIdx = np.nonzero(sumAlpha)
+    print 'Available nonzero components are:'
+    for ind in validIdx:
+        print ind,
+    print
+    component = input('which component do you want to see (-1 to exit)?')
+    if component==-1:
+        break
+    psi = allData['psi_recon'][:,:,component]
+    splt.animateSkeleton(psi)
+    plt.clf()
+    plt.plot(allData['alpha_recon'][:,component])
+    plt.xlabel('frame')
+    plt.ylabel('alpha')
+    plt.show()
+
+
 
 def printparams(args):
     filelen = max([len(afile) for afile in args.Files])
@@ -140,6 +179,8 @@ def main():
         filtfile(args)
     if args.Lcurve:
         plotLcurve(args)
+    if args.showresults:
+        showresults(args)
 
 if __name__ == '__main__':
     main()
