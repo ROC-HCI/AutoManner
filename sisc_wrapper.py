@@ -53,7 +53,7 @@ def buildArg():
     metavar='ITERATION_THRESHOLD',\
     help='Threshold of iteration (termination criteria) (default:%(default)s)')
     
-    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-6,\
+    args.add_argument('-diff_thresh',nargs='?',type=float,default=1e-5,\
     metavar='DIFFERENCE_THRESHOLD',\
     help='Threshold of difference in log objective function\
     (termination criteria) (default:%(default)s)')
@@ -72,6 +72,11 @@ def buildArg():
     metavar='NON-SPARSITY_COST',\
     help='Represents the cost of nonsparsity. The higer the cost, the \
     sparser the occurances of the dictionary elements.')
+    
+    args.add_argument('--pca',dest='applyPCA',action='store_true',\
+    default=False,help='Applies frame level PCA before running SISC. When\
+    displaying the results, it is necessary to backproject from PCA domain\
+    to the skeleton domain.')
     
     args.add_argument('--Disp',dest='Disp', action='store_true',\
     default=False,help='Turns on displays relevant for Toy data.\
@@ -156,9 +161,12 @@ def realTest(args):
     if len(args.i)>1:
         print 'Currently SISC takes only one data file'
         return
-    data,header,tx,th,ht = fio.preprocess(args.i[0])
-    X = data[:,2:]
-    
+    if not args.applyPCA:
+        data,header,tx,th,ht = fio.preprocess(args.i[0])
+        X = data[:,2:]
+    else:
+        data,header = fio.readdatafile(args.i[0])
+        X,princomps,Xmean = fio.txfmdata(data)    
     # Pad the data to make it power of two and then 
     # apply Convolutional Sparse Coding
     numZeros = (nextpow2(len(X))-len(X))
@@ -168,15 +176,27 @@ def realTest(args):
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
     dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
     totWorker=args.p)
-    
     # Save the results
-    resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
-        str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
-    sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
-    'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
-    'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,
-    'Data':data,'header':header,'tx':tx,'th':th,'ht':ht,'Data_Origin':'Real'})
-        
+    if not args.applyPCA:
+        resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
+            str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
+        sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
+        'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
+        'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,\
+        'Data':data,'header':header,'Data_Origin':'Real'})
+    else:
+        M,K,D=np.shape(psi_recon)
+        psi_decoded = np.zeros((M,np.size(princomps,axis=0),D))
+        for i in xrange(D):
+            psi_decoded[:,:,i] = psi_recon[:,:,i].dot(princomps.T) + Xmean
+        resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
+            str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
+        sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
+        'psi_recon':psi_decoded,'cost':cost,'reconError':reconError,'L0':L0,\
+        'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,\
+        'Data':data,'header':header,\
+        'psi_comp':psi_recon,'princmpT':princomps,'xmean':Xmean,\
+        'Data_Origin':'Real'})
 ################################ Main Entrance ################################
 
 def main():

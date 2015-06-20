@@ -7,7 +7,6 @@ This module to "pretty print" the results
 -------------------------------------------------------------------------------
 '''
 from argparse import ArgumentParser
-import os
 import scipy.io as sio
 import numpy as np
 import matplotlib.pyplot as plt
@@ -102,8 +101,6 @@ def showresults(args):
     plt.xlabel('frame')
     plt.ylabel('alpha')
     plt.show()
-
-
 
 def printparams(args):
     filelen = max([len(afile) for afile in args.Files])

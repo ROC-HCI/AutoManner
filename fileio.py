@@ -37,6 +37,7 @@ readdatafile            --> (data output)
 |    splitcsvfile       --> (data output)
 |    pad                --> (data output)
 |    vcat               --> (data output)
+|    txfmdata           --> (data output)
 |    getjointdata       --> (X output)
 |    |                                                               
 |    (data input)
@@ -50,11 +51,8 @@ readdatafile            --> (data output)
 '''
 import numpy as np
 import os
-import skeletonPlotter as sp
-import scipy.io as sio
 import scipy.signal as sg
 import skelplot_mayavi as skplt
-import math
 ############################## Convenience ####################################
 # TODO: change arguments to all lower case
 
@@ -203,6 +201,18 @@ def preprocess(filename,stenfile='Data/labeldata.csv'):
     data,tx,th,ht = calcinvarient(data)
     return data,header,tx,th,ht
 
+# Transforms data into PCA domain
+def txfmdata(data):
+    X = data[:,2:]
+    x_mean = np.mean(X,axis=0)
+    X = X - x_mean
+    d,v = np.linalg.svd(X,full_matrices=True)[1:]
+    d=d/np.sum(d) # Normalize
+    idx = d>=0.01
+    princomps = v.T[:,idx]
+    X_proj = X.dot(princomps)
+    return X_proj,princomps,x_mean
+
 ############################## Toy dataset ####################################
 # Generate and return a toy data
 def toyExample_medium():
@@ -320,28 +330,6 @@ def toyExample_orthogonal_3d_multicomp():
     psi[:,2,1] = np.sin(xVal+np.pi/4)
     return alpha,psi    
 # Generate and return a toy data
-def toyExample_orthogonal_3d_multicomp():
-    alpha = np.zeros((256,2))
-    alpha[35,0] = 0.5
-    alpha[180,0] = 1
-    alpha[140,0] = -0.5
-    alpha[160,0] = 1
-    alpha[220,0] = -1
-    alpha[50,1] = 1
-    alpha[75,1] = 0.5
-    alpha[100,1] = -0.5
-    alpha[160,1] = 1
-    alpha[200,1] = 1
-    xVal = np.linspace(-1,1,32)*np.pi
-    psi = np.zeros((len(xVal),3,2))
-    psi[:,0,0] = 0.5*np.sin(4*xVal) - np.sin(xVal)
-    psi[:,1,0] = 0.5*np.sin(4*(xVal+np.pi/6)) - np.sin(xVal+np.pi/6)
-    psi[:,2,0] = 0.5*np.sin(4*(xVal+np.pi/4)) - np.sin(xVal+np.pi/4)
-    psi[:,0,1] = np.sin(xVal)
-    psi[:,1,1] = np.sin(xVal+np.pi/6)
-    psi[:,2,1] = np.sin(xVal+np.pi/4)
-    return alpha,psi    
-# Generate and return a toy data
 def toyExample_large_3d_multicomp(N=8192,M=64):
     alpha = np.zeros((N,2))
     alpha[[int(x) for x in np.ceil(np.random.rand(10)*(N-1))],0]=\
@@ -359,33 +347,8 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     return alpha,psi
 
 ############################## Test Modules ####################################
-# Read, clean, make invariant and animate
+# project on principal component space, then backproject and animate
 def unitTest1(datafile='Data/13.3.csv'):
     data,header=readdatafile(datafile)
-    data = calcinvarient(data)[0]
-    skplt.animateSkeleton(data)
-# Calculate the average pose from the whole dataset. invariant represents if the
-# data should be made invariant or not    
-def unitTest5(allfiles,invariant=True):
-    # to remove the weight of each video length, we calculate the average of
-    # the average
-    for acsv in csvlist:
-        data = splitcsvfile(acsv,header)[0]
-        if firsttime:
-            firsttime=False            
-            sumdat = np.sum(data,axis=0)
-        else:
-            sumdat = sumdat + np.sum(data,axis=0)
-        count+=len(data)
-    avgSkel = sumdat/count
-    avgSkel[0:2]=0
-    header = splitcsvfile(acsv,header)[1]
-    sio.savemat('Data/meanSkel.mat',{'avgSkel':avgSkel,'header':header})
-    print 'done'
-def main():
-    data,dataheader=preprocess('Data/13.3.csv')[0:2]
-    skplt.animateSkeleton(data)
-    #drawskel(data[0,:])
-    
-if __name__=='__main__':
-    main()
+    x_proj,eigvec,x_mean = txfmdata(data)
+    skplt.animateSkeleton(x_proj.dot(eigvec)+x_mean)

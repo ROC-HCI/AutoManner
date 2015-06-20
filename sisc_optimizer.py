@@ -89,13 +89,13 @@ def nextpow2(i):
 ######################### Algorithm Control Functions #########################
 ## Model functions for line search
 #def modelfunc_alpha(alpha_k,alpha,psi,X,Gamma,gradAlpha,p):
-#    return calcP(X,alpha_k,psi,p) + \
-#    np.sum(gradAlpha*(alpha - alpha_k)) + \
-#    0.5*(1/Gamma)*np.linalg.norm(alpha - alpha_k)**2.0
+#   return calcP(X,alpha_k,psi,p) + \
+#   np.sum(gradAlpha*(alpha - alpha_k)) + \
+#   0.5*(1./float(Gamma))*np.linalg.norm(alpha - alpha_k)**2.0
 #def modelfunc_psi(alpha,psi_k,psi,X,Gamma,gradPsi,p):
-#    return calcP(X,alpha,psi_k,p) + \
-#    np.sum(gradPsi*(psi - psi_k)) + \
-#    0.5*(1/Gamma)*np.linalg.norm(psi - psi_k)**2.0
+#   return calcP(X,alpha,psi_k,p) + \
+#   np.sum(gradPsi*(psi - psi_k)) + \
+#   0.5*(1./float(Gamma))*np.linalg.norm(psi - psi_k)**2.0
 ################### Functions for calculating objectives ######################
 # Mean squared error part of the objective function
 def calcP(X,alpha,psi,p):
@@ -227,27 +227,26 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
         itStartTime = time.time()
         print str(iter),
         if iter<=5:
-            initLR = N/2
+            initLR = float(N)
         else:
-            initLR = 16
+            initLR = float(N/8)
         # Update psi
         # ==========
         # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X,workers)
-        currentcost = logcost(X,alpha,psi,beta,workers)
-        #gamma_psi,setZero = math.sqrt(iter+1),False
-        gamma_psi,setZero = initLR,False
-        for trialno in xrange(int(math.ceil(math.log(initLR,2)))+10):
+        gamma_psi,setZero = float(M),False
+        prevcost = logcost(X,alpha,psi,beta,workers)
+        for trialno in xrange(int(math.ceil(math.log(float(M),2)))+4):
             newPsi = projectPsi(psi - gamma_psi*grpsi/N,1.0)
-            if logcost(X,alpha,newPsi,beta,workers) < currentcost:
+            if logcost(X,alpha,newPsi,beta,workers) <= prevcost:
                 psi = newPsi.copy()
                 setZero = False
                 break
             else:
-                gamma_psi = gamma_psi/2
+                gamma_psi = gamma_psi/2.0
                 setZero = True
         if setZero:
-            gamma_psi = 0 
+            gamma_psi = 0.0
         print 'LR_p/a','{:.2f}'.format(gamma_psi),
         
         # Update alpha
@@ -255,20 +254,19 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
         gralpha = calcGrad_alpha(alpha,psi,X,workers)
         # Try reducing the learning rate if it is too large. If three tries
         # fail consecutively, just set it to zero.
-        currentcost = logcost(X,alpha,psi,beta,workers)
-        #gamma_alpha,setZero = math.sqrt(iter+1),False
         gamma_alpha,setZero = initLR,False
+        prevcost = logcost(X,alpha,psi,beta,workers)
         for trialno in xrange(int(math.ceil(math.log(initLR,2)))+5):
             newAlpha = shrink(alpha - gamma_alpha*gralpha/N,gamma_alpha*beta/N)
-            if logcost(X,newAlpha,psi,beta,workers) < currentcost:
+            if logcost(X,newAlpha,psi,beta,workers) <= prevcost:
                 alpha = newAlpha.copy()
                 setZero = False
                 break
             else:
-                gamma_alpha = gamma_alpha/2
+                gamma_alpha = gamma_alpha/2.0
                 setZero = True
         if setZero:
-            gamma_alpha = 0
+            gamma_alpha = 0.0
         print '{:.2f}'.format(gamma_alpha),
         # Count the iteration
         iter += 1
