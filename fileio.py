@@ -52,7 +52,6 @@ readdatafile            --> (data output)
 import numpy as np
 import os
 import scipy.signal as sg
-import skelplot_mayavi as skplt
 ############################## Convenience ####################################
 # TODO: change arguments to all lower case
 
@@ -345,10 +344,3 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
-
-############################## Test Modules ####################################
-# project on principal component space, then backproject and animate
-def unitTest1(datafile='Data/13.3.csv'):
-    data,header=readdatafile(datafile)
-    x_proj,eigvec,x_mean = txfmdata(data)
-    skplt.animateSkeleton(x_proj.dot(eigvec)+x_mean)

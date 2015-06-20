@@ -66,7 +66,7 @@ python sisc_wrapper.py -diff_thresh 1e-5 --pca -i 'Data/13.3.csv'
 # python skelplot_mayavi.py Data/13.1.csv
 
 # Show a skeleton animation that is inflated from compressed data
-# python -c "import fileio; fileio. unitTest1('Data/13.1.csv')"
+# python -c "import skelplot_mayavi as my; my.unitTest1('Data/13.1.csv')"
 
 # Show the results (psi and alpha)
 # python filter.py --showresults Results/*.mat
