@@ -220,54 +220,61 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
     psi,alpha = sisc_init(M,N,K,D)   # Random initialization
     #psi = psi_orig                 # Setting the initial value to actual
     #alpha = alpha_orig             # solution. Debug purpose only
-    prevcost = logcost(X,alpha,psi,beta,workers)
-    countZero = 0
+    countZero,setZero_p,setZero_a = 0,True,True
+    previtcost = logcost(X,alpha,psi,beta,workers)
     # Main optimization loop
     while iter < iter_thresh:
         itStartTime = time.time()
         print str(iter),
-        if iter<=5:
-            initLR = float(N)
-        else:
-            initLR = float(N/8)
         # Update psi
         # ==========
         # Calculate gradient of P with respect to psi
         grpsi = calcGrad_psi(alpha,psi,X,workers)
-        gamma_psi,setZero = float(M),False
         prevcost = logcost(X,alpha,psi,beta,workers)
-        for trialno in xrange(int(math.ceil(math.log(float(M),2)))+4):
+        if setZero_p or iter < 5 or (iter % 50.0 == 0.0):
+            # Exhaustive line search
+            initLR = float(M)
+            gamma_psi,setZero_p = initLR,False
+        else:
+            # Bold driver
+            gamma_psi = gamma_psi * 1.05
+        # Learning rate reduction
+        for trialno in xrange(int(math.ceil(math.log(initLR,2.0)))+5):
             newPsi = projectPsi(psi - gamma_psi*grpsi/N,1.0)
             if logcost(X,alpha,newPsi,beta,workers) <= prevcost:
                 psi = newPsi.copy()
-                setZero = False
+                setZero_p = False
                 break
             else:
                 gamma_psi = gamma_psi/2.0
-                setZero = True
-        if setZero:
-            gamma_psi = 0.0
+            if gamma_psi < 0.05:
+                gamma_psi = 0.0
+                setZero_p = True
         print 'LR_p/a','{:.2f}'.format(gamma_psi),
         
         # Update alpha
         # ============
         gralpha = calcGrad_alpha(alpha,psi,X,workers)
-        # Try reducing the learning rate if it is too large. If three tries
-        # fail consecutively, just set it to zero.
-        gamma_alpha,setZero = initLR,False
         prevcost = logcost(X,alpha,psi,beta,workers)
+        if setZero_a or iter < 5 or (iter % 50.0 == 0.0):
+            initLR = float(N)
+            gamma_alpha,setZero_a = initLR,False
+        else:
+            gamma_alpha = gamma_alpha * 1.05
+        # Learning rate reduction
         for trialno in xrange(int(math.ceil(math.log(initLR,2)))+5):
             newAlpha = shrink(alpha - gamma_alpha*gralpha/N,gamma_alpha*beta/N)
             if logcost(X,newAlpha,psi,beta,workers) <= prevcost:
                 alpha = newAlpha.copy()
-                setZero = False
+                setZero_a = False
                 break
             else:
                 gamma_alpha = gamma_alpha/2.0
-                setZero = True
-        if setZero:
-            gamma_alpha = 0.0
+            if gamma_alpha < 0.05:
+                gamma_alpha = 0.0
+                setZero_a = True
         print '{:.2f}'.format(gamma_alpha),
+
         # Count the iteration
         iter += 1
         
@@ -287,8 +294,8 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
             pp.draw()
             pp.pause(1)
         # Print iteration status.
-        delta = prevcost - cost
-        prevcost = cost
+        delta = previtcost - cost
+        previtcost = cost
         SNR = sigPerSampl/math.exp(cost)
         print 'N',str(N),'K',str(K),'M',str(M),'D',str(D),'Beta',\
         str(beta),'logObj','{:.2f}'.format(cost), \
@@ -309,7 +316,7 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
         else:
             countZero = 0        
         # zero tolerance on increasing cost
-        assert(prevcost<=cost)
+        assert(previtcost<=cost)
         
     reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)
