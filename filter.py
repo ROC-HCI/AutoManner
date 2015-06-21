@@ -91,9 +91,7 @@ def showresults(args):
     for ind in validIdx:
         print ind,
     print
-    component = input('which component do you want to see (-1 to exit)?')
-    if component==-1:
-        break
+    component = input('which component do you want to see?')
     psi = allData['psi_recon'][:,:,component]
     splt.animateSkeleton(psi)
     plt.clf()

@@ -188,14 +188,15 @@ def realTest(args):
         M,K,D=np.shape(psi_recon)
         psi_decoded = np.zeros((M,np.size(princomps,axis=0),D))
         for i in xrange(D):
-            psi_decoded[:,:,i] = psi_recon[:,:,i].dot(princomps.T) + Xmean
+            temp = psi_recon[:,:,i]/np.max(psi_recon[:,:,i])
+            psi_decoded[:,:,i] = temp.dot(princomps.T) + Xmean
         resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
             str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
         sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
         'psi_recon':psi_decoded,'cost':cost,'reconError':reconError,'L0':L0,\
         'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,\
         'Data':data,'header':header,\
-        'psi_comp':psi_recon,'princmpT':princomps,'xmean':Xmean,\
+        'psi_comp':psi_recon,'princmp':princomps,'xmean':Xmean,\
         'Data_Origin':'Real'})
 ################################ Main Entrance ################################
 
