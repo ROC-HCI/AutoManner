@@ -75,7 +75,7 @@ def unitTest1(datafile='Data/13.3.csv'):
     import fileio as fio
     data,header=fio.readdatafile(datafile)
     x_proj,eigvec,x_mean = fio.txfmdata(data)
-    animateSkeleton(x_proj.dot(eigvec)+x_mean)
+    animateSkeleton(x_proj.dot(eigvec.T)+x_mean)
 
 def main():
     import fileio as fio
