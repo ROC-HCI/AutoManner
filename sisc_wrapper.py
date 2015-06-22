@@ -182,8 +182,8 @@ def realTest(args):
             str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
         sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
         'psi_recon':psi_recon,'cost':cost,'reconError':reconError,'L0':L0,\
-        'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,\
-        'Data':data,'header':header,'Data_Origin':'Real'})
+        'M':args.M,'D':args.D,'K':np.size(X,axis=1),'Beta':args.Beta,'SNR':SNR,\
+        'Data':data,'header':header,'N':np.size(X,axis=0),'Data_Origin':'Real'})
     else:
         M,K,D=np.shape(psi_recon)
         psi_decoded = np.zeros((M,np.size(princomps,axis=0),D))
@@ -195,9 +195,9 @@ def realTest(args):
         sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
         'psi_recon':psi_decoded,'cost':cost,'reconError':reconError,'L0':L0,\
         'M':args.M,'D':args.D,'Beta':args.Beta,'SNR':SNR,\
-        'Data':data,'header':header,\
+        'Data':data,'header':header,'K':np.size(X,axis=1),\
         'psi_comp':psi_recon,'princmp':princomps,'xmean':Xmean,\
-        'Data_Origin':'Real'})
+        'N':np.size(X,axis=0),'Data_Origin':'Real'})
 ################################ Main Entrance ################################
 
 def main():

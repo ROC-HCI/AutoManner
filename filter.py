@@ -39,26 +39,26 @@ def buildArg():
     pars.add_argument('Files',nargs='+',help='List of the (.mat) files from\
      which the results are to read')
     pars.add_argument('-pprint',nargs='+',\
-        choices=['D','M','Beta','reconError','cost','SNR','L0'],\
+        choices=['D','M','K','Beta','reconError','cost','SNR','L0'],\
         help='Print the specified parameters from the files in a pretty format')
     pars.add_argument('-hi',nargs='?',\
-        choices=['D','M','Beta','reconError','cost','SNR','L0'],\
+        choices=['D','M','K','Beta','reconError','cost','SNR','L0'],\
         help='Specify a parameter name.\
         The program returns names of all the files that contain the highest\
         value of this parameter')
     pars.add_argument('-lo',nargs='?',\
-        choices=['D','M','Beta','reconError','cost','SNR','L0'],\
+        choices=['D','M','K','Beta','reconError','cost','SNR','L0'],\
         help='Specify a parameter name.\
         The program returns names of all the files that contain the lowest\
         value of this parameter')
     pars.add_argument('-nhi',nargs='?',\
-        choices=['D','M','Beta','reconError','cost','SNR','L0'],\
+        choices=['D','M','K','Beta','reconError','cost','SNR','L0'],\
         help='Specify a parameter name.\
         The program returns names of all the files that does not \
         contain the highest\
         value of this parameter')
     pars.add_argument('-nlo',nargs='?',\
-        choices=['D','M','Beta','reconError','cost','SNR','L0'],\
+        choices=['D','M','K','Beta','reconError','cost','SNR','L0'],\
         help='Specify a parameter name.\
         The program returns names of all the files that does not\
          contain the lowest\
