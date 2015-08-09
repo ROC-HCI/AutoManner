@@ -6,12 +6,12 @@ This module to "pretty print" the results
     University of Rochester
 -------------------------------------------------------------------------------
 '''
+import matplotlib
 from argparse import ArgumentParser
 import scipy.io as sio
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import skelplot_mayavi as splt
 
 def plotLcurve(args):
     LplotDat = []
@@ -71,6 +71,7 @@ def buildArg():
     return pars
 
 def showresults(args):
+    import skelplot_mayavi as splt
     for idx,afile in enumerate(args.Files):
         if afile.lower().endswith('.mat'):
             allData = sio.loadmat(afile)
@@ -92,7 +93,9 @@ def showresults(args):
         print ind,
     print
     component = input('which component do you want to see?')
-    psi = allData['psi_recon'][:,:,component]
+    mult = input('please enter a multiplier:')
+    psi = mult*allData['psi_comp'][:,:,component].dot(allData['princmp'].T)\
+                        +allData['xmean']
     splt.animateSkeleton(psi)
     plt.clf()
     plt.plot(allData['alpha_recon'][:,component])

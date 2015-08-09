@@ -295,6 +295,8 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
             pp.pause(1)
         # Print iteration status.
         delta = previtcost - cost
+        # zero tolerance on increasing cost
+        #assert(previtcost>=cost)
         previtcost = cost
         SNR = sigPerSampl/math.exp(cost)
         print 'N',str(N),'K',str(K),'M',str(M),'D',str(D),'Beta',\
@@ -314,9 +316,7 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
                 break
             print countZero
         else:
-            countZero = 0        
-        # zero tolerance on increasing cost
-        assert(previtcost<=cost)
+            countZero = 0
         
     reconError = calcP(X,alpha,psi,workers)
     L0 = np.count_nonzero(alpha)

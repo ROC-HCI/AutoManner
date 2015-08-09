@@ -1,0 +1,93 @@
+<html>
+  <head>
+    <script type="text/javascript" src="amcharts/amcharts.js"></script>
+    <script type="text/javascript" src="amcharts/serial.js"></script>
+    <script type="text/javascript" src="amcharts/pie.js"></script>
+    <script type="text/javascript" src="amcharts/themes/light.js"></script>
+    <script type="text/javascript" src="amcharts/themes/dark.js"></script>
+
+    <script src="amcharts/gantt.js"></script>
+></scr
+    <script src="jquery-1.10.2.js"ipt>
+    <script src="jquery-ui.js"></script>
+
+
+    <script src="PapaParse-4.1.0/papaparse.js"></script>
+
+    <link href="flatui/bootstrap/css/bootstrap.css" rel="stylesheet">
+    <!--<link href="flatui/css/flat-ui.css" rel="stylesheet">-->
+    <link href="gui.css" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r71/three.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-inverse navbar-static-top" height = 10%>
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#">RocSpeak Body Language Interface Demo</a>
+      </div>
+    </div>
+    </nav>
+    <div  id="mainContainer" height = 90% >
+      <div class="row" style="height:50%;background-color:#ffffff;border-radius:15px;padding-top:10px;padding-bottom:10px;">
+        <div class="col-md-6 col-lg-6" >
+          <div id="videoContainer" >
+      		<video id = "video"  controls>
+      		  <source src="Data/14.1/14.1.mp4" id = "video" type="video/mp4">
+      		  <source src="Data/14.1/14.1.ogg" type="video/ogg">
+      		  Your browser does not support HTML5 video.
+      		</video>
+            <button id="rewind" title="reverse">&laquo;</button>
+            <button id="ffwd" title="fast forward">&raquo;</button>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-6" id="skeletonContainer"><img src="skeleholder.png" id="skeleholder"/></div>
+      </div>
+      <div class ="row">
+          <div class="col-md-6 col-lg-8" id = "selector"><div id = "patternselector" class = "btn-group"></div>
+          <div id = "timelineChartdiv"></div>
+          <div id = "surveyq">  This pattern accuratetly represents one of my body movement behavior.
+              <div class="btn-group" data-toggle="buttons">
+                <label class="btn btn-default">
+                    <input type="radio" id="q156" name="quality[25]" value="1" /> 1
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="q157" name="quality[25]" value="2" /> 2
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="q158" name="quality[25]" value="3" /> 3
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="q159" name="quality[25]" value="4" /> 4
+                </label> 
+                <label class="btn btn-default active">
+                    <input type="radio" id="q160" name="quality[25]" checked="checked" value="5" /> 5
+                </label>
+            </div>
+          The software correctly detected when I showed the pattern. This body movement pattern conveys a meaning. 
+          I want to name this pattern as:
+        </div></div>
+          <div class="col-md-6 col-lg-4" id = "pieChartdiv"></div>
+      </div>
+    </div>
+
+    <script src="OrbitControls.js"></script>
+    <script src="gui.js"></script>
+    <script>
+      var myVid = document.getElementById("video");
+      if (myVid.duration) {
+        console.log("The video duration has already been set");
+        drawTimeline();
+      } else {
+        $("#video").one("durationchange", function() {
+        //myVid.ondurationchange=function() {
+          console.log("The video duration has changed");
+          drawTimeline();
+        //};
+        });
+      }
+    </script>
+  </body>
+</html>

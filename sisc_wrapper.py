@@ -169,6 +169,7 @@ def realTest(args):
         X,princomps,Xmean = fio.txfmdata(data)    
     # Pad the data to make it power of two and then 
     # apply Convolutional Sparse Coding
+    orgX,orgY =  np.shape(X);
     numZeros = (nextpow2(len(X))-len(X))
     X = np.pad(X,((0,numZeros),(0,0)),'constant',constant_values=0)
     alpha_recon,psi_recon,cost,reconError,L0,SNR = optimize_proxim(X,M=args.M,\
@@ -176,6 +177,7 @@ def realTest(args):
     thresh = args.diff_thresh,dispObj=args.Disp_Obj,\
     dispGrad=args.Disp_Gradiants,dispIteration=args.Disp_Iterations,\
     totWorker=args.p)
+    alpha_recon = alpha_recon[0:orgX]
     # Save the results
     if not args.applyPCA:
         resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
@@ -188,8 +190,8 @@ def realTest(args):
         M,K,D=np.shape(psi_recon)
         psi_decoded = np.zeros((M,np.size(princomps,axis=0),D))
         for i in xrange(D):
-            temp = psi_recon[:,:,i]/np.max(psi_recon[:,:,i])
-            psi_decoded[:,:,i] = temp.dot(princomps.T) + Xmean
+            psi_decoded[:,:,i] = psi_recon[:,:,i].dot(princomps.T) + Xmean
+        print np.shape(psi_decoded)
         resultName = args.o+'_M='+str(args.M)+'_D='+str(args.D)+'_beta='+\
             str(args.Beta)+'__'+time.strftime('%H_%M_%S',time.localtime())
         sio.savemat(resultName+'.mat',{'alpha_recon':alpha_recon,\
