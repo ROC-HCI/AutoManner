@@ -1,7 +1,5 @@
 from argparse import ArgumentParser
-from sisc_optimizer import *
 import scipy.io as sio
-import fileio as fio
 import time
 import numpy as np
 import csv
@@ -12,7 +10,6 @@ import webbrowser
 #gencsv('skeleton_test/41.1.csv','temp/result_9_M=64_D=5_beta=0.2__13_13_54.mat')
 
 def gencsv(inputfile,matfile):
-    
     dat = sio.loadmat(matfile)
     M,K,D=np.shape(dat['psi_comp'])
     tdp = np.zeros((M,np.size(dat['princmp'],axis=0),D));
@@ -23,10 +20,10 @@ def gencsv(inputfile,matfile):
     saveAscsv(inputfile,dat['alpha_recon'],dat['psi_recon'],30.2,tdp,dat['xmean'])
 
 def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
-    #print str(inputfile)[14:-4];
-
     speed = float(speed);
-    directory = 'Results/'+str(inputfile)[14:-4];
+    ifilenameonly = inputfile[inputfile.rfind('/')+1:-4]
+    print ifilenameonly
+    directory = 'Results/'+ifilenameonly;
     if not os.path.exists(directory):
         os.makedirs(directory);
 
@@ -43,7 +40,6 @@ def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
                 stablist[ele] = 0;
         templist = copy.copy(stablist);
         rangelist = len(templist);
-        #print max(templist);
         maxalpha.append(max(templist));
 
         checkmaxval = [];
@@ -54,13 +50,10 @@ def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
             writelist.append(str(i)+'.'+str(j));
             j=j+1;
             tempmaxval = max(templist);
-            #print tempmaxval;
             if tempmaxval > totalmax:
                 maxindex = templist.index(tempmaxval);
-                #print maxindex;
                 ckv = 0;
                 while ckv != 1:
-                    #print maxindex;
                     if templist[maxindex] <= totalmax:
                         break;
                     if len(checkmaxval)>0:
@@ -77,7 +70,6 @@ def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
                         ckv = 1;
 
                 checkmaxval.append(maxindex);
-                #print maxindex;
                 templist[maxindex] = 0;
                 tempstart = maxindex;
                 tempend = maxindex;
@@ -103,20 +95,6 @@ def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
             else:
                 break;
 
-    '''
-    for i in range(5):
-        psilist = psi[:,:,i].tolist();
-        #psilist = psi[:,:,i].tolist();
-        skelelist = [];
-        for row in psilist:
-            skelelist.append(row);
-
-        writename = 'Results/'+str(inputfile)[14:-4]+'/skele_'+str(i)+'_'+str(inputfile)[14:-4]+'.csv';
-        #skelelist = [skeletitle]+skelelist;
-        with open(writename,'w') as writefile:
-            writer = csv.writer(writefile);
-            writer.writerows(skelelist);
-    '''
     xeach = Xmean.tolist()[0];
     for i in range(5):
         tdplist = tdp[:,:,i].tolist();
@@ -125,7 +103,7 @@ def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
             if row != '':
                 tempskele.append(row);
         tempskele.append(xeach);
-        writename = 'Results/'+str(inputfile)[14:-4]+'/tdp_'+str(i)+'_'+str(inputfile)[14:-4]+'.csv';
+        writename = 'Results/'+ifilenameonly+'/tdp_'+str(i)+'_'+ifilenameonly+'.csv';
         with open(writename,'wb') as writefile:
             writer = csv.writer(writefile);
             writer.writerows(tempskele);
@@ -156,7 +134,8 @@ def saveAscsv(inputfile,alpha,psi,speed, tdp, Xmean):
                 finaltimeline.append(timeele);
 
     finaltimeline = [timetitleline]+finaltimeline;
-    timewritename = 'Results/'+str(inputfile)[14:-4]+'/timeline_'+str(inputfile)[14:-4]+'.csv';
+    timewritename = 'Results/'+ifilenameonly+'/timeline_'+ifilenameonly+'.csv';
+    
     with open(timewritename,'wb') as writefile1:
         writer1 = csv.writer(writefile1);
         writer1.writerows(finaltimeline);
