@@ -202,7 +202,7 @@ def calcGrad_psi(alpha,psi,X,p):
 ####################### Main Gradient Descent Procedure #######################
 # Applies Shift Invariant Sparse Coding with Proximal Gradient Descent Algorithm
 # It assumes the data (X) is given in batch mode -- i.e. X is exhaustive
-# X is N x K data tensor for only one joint 
+# X is N x K data tensor
 # M is a scalar integer representing time/frame length for AEB     
 # D represents how many AEB we want to capture
 # beta is the weight for sparcity constraint
@@ -252,6 +252,100 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
                 setZero_p = True
         print 'LR_p/a','{:.2f}'.format(gamma_psi),
         
+        # Update alpha
+        # ============
+        gralpha = calcGrad_alpha(alpha,psi,X,workers)
+        prevcost = logcost(X,alpha,psi,beta,workers)
+        if setZero_a or iter < 5 or (iter % 50.0 == 0.0):
+            initLR = float(N)
+            gamma_alpha,setZero_a = initLR,False
+        else:
+            gamma_alpha = gamma_alpha * 1.05
+        # Learning rate reduction
+        for trialno in xrange(int(math.ceil(math.log(initLR,2)))+5):
+            newAlpha = shrink(alpha - gamma_alpha*gralpha/N,gamma_alpha*beta/N)
+            if logcost(X,newAlpha,psi,beta,workers) <= prevcost:
+                alpha = newAlpha.copy()
+                setZero_a = False
+                break
+            else:
+                gamma_alpha = gamma_alpha/2.0
+            if gamma_alpha < 0.05:
+                gamma_alpha = 0.0
+                setZero_a = True
+        print '{:.2f}'.format(gamma_alpha),
+
+        # Count the iteration
+        iter += 1
+        
+        # Display graphs and print status
+        if dispGrad: 
+            # Display Gradiants
+            dispGrads(gralpha,grpsi)
+        if dispIteration:
+            # Display alpha, psi, X and L
+            dispPlots(alpha,psi,X,'Iteration Data',workers)
+        # Display Log Objective
+        cost = logcost(X,alpha,psi,beta,workers)            
+        if dispObj:
+            pp.figure('Log likelihood plot')
+            pp.scatter(iter,cost,c = 'b')
+            pp.title('Likelihood Plot for Beta = ' + '{:f}'.format(beta))
+            pp.draw()
+            pp.pause(1)
+        # Print iteration status.
+        delta = previtcost - cost
+        # zero tolerance on increasing cost
+        #assert(previtcost>=cost)
+        previtcost = cost
+        SNR = sigPerSampl/math.exp(cost)
+        print 'N',str(N),'K',str(K),'M',str(M),'D',str(D),'Beta',\
+        str(beta),'logObj','{:.2f}'.format(cost), \
+            'SNR','{:.2f}'.format(SNR),\
+            'delta(thr='+'{:.0e}'.format(thresh)+')',\
+            '{:.2e}'.format(delta),'itTime',\
+            '{:.2e}'.format(time.time() - itStartTime)
+            
+        # terminate loop with a little leniency for the obj f to stay flat  
+        maxConsecFlat = 8
+        if (delta<thresh) or np.isnan(delta):
+            if (delta<thresh or np.isnan(delta))and countZero<maxConsecFlat:
+                countZero += 1
+            elif (delta < thresh or np.isnan(delta)) and \
+            countZero>=maxConsecFlat:
+                break
+            print countZero
+        else:
+            countZero = 0
+        
+    reconError = calcP(X,alpha,psi,workers)
+    L0 = np.count_nonzero(alpha)
+    return alpha,psi,cost,reconError,L0,SNR
+####################### Activation Sequence Calculator #######################
+# Given a set of pre-calculated dictionary of patterns, this procedure
+# calculates the activation sequences of the patterns.
+#
+# Please note: the whole update
+# procedure is not run in this function. Only the alpha is updated.
+#
+# X is N x K data tensor
+# psi represents the pre-calculated dictionary of patterns
+# beta is the weight for sparcity constraints
+def calcAlpha(X,psi,beta,iter_thresh=65536,\
+    thresh = 1e-6,dispObj=False,dispGrad=False,dispIteration=False,totWorker=4):
+    iter = 0
+    N,K = np.shape(X)
+    M,K,D = np.shape(psi)
+    workers = Pool(processes=totWorker)   # Assign workers for parallel proc
+    alpha = sisc_init(M,N,K,D)[1]        # Random initialization
+    #psi = psi_orig                 # Setting the initial value to actual
+    #alpha = alpha_orig             # solution. Debug purpose only
+    countZero,setZero_p,setZero_a = 0,True,True
+    previtcost = logcost(X,alpha,psi,beta,workers)
+    # Main optimization loop
+    while iter < iter_thresh:
+        itStartTime = time.time()
+        print str(iter),
         # Update alpha
         # ============
         gralpha = calcGrad_alpha(alpha,psi,X,workers)
