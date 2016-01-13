@@ -1,14 +1,22 @@
 var chart;
-var id = getQSParam('id');
+//var id = getQSParam('id');
 var numofPatterns;
 var loopstopper =[];
-var color = ["#0099CC","#66FF33", "#FF9900","#FF0000","#CC66FF"];
+var color = ["#0099CC","#999900", "#FF9900","#FFFF00","#CC66FF"];
 var patternIndex = [];
+var chartData = [];
+var current = 0;
+var piechartDataProvider;
+var piechart;
+var stage = 1;
+var videoplayed = false;
+var clickedallflag = false;
 
 var intervalRewind = [];
 $('#video').on('play',function(){
     //$("#play").html("pause(realtime) ||");
     $("#ffwd").html("&#10074;&#10074;");
+    $("#play").html("&#10074;&#10074;");
 
     //myVid.playbackRate = 1.0;
     //clearAllTimeout(loopstopper);
@@ -16,14 +24,52 @@ $('#video').on('play',function(){
 });
 $('#video').on('pause',function(){
     //$("#play").html("play &#9654;");
-    $("#ffwd").html("&#9654;");
+	if(myVid.playbackRate == 1 && stage == 2)
+		$("#ffwd").html("&#9654;");
+	else
+		$("#ffwd").html("&#9654;&#9654;");
+    $("#play").html("&#9654;");
 
     myVid.playbackRate = 1.0;
     //clearAllTimeout(loopstopper);
     partialer = false;
     clearAllInterval(intervalRewind);
 });
+
+var timeTracker = 0;
+
 $('#video').on('timeupdate',function(){
+
+	if(!videoplayed){
+		var totalSec = parseInt(myVid.duration, 10)*3; // don't forget the second param
+		timeTracker++;
+		//console.log("max me " + totalSec);
+		console.log(timeTracker);
+		if(myVid.currentTime == myVid.duration)
+		{
+			if(timeTracker > totalSec)
+			{
+				timeTracker = 0;
+				$('#mturk_info').html("<h3 style = 'color:cyan'>You did not completly watch the video, please go back and start from the beggining.</h3>");
+			}
+			else
+			{
+				videoplayed = true;
+				$("#topContainer").removeClass("col-md-offset-3");
+				$("#topContainer").removeClass("col-lg-offset-3");
+				$("#pre-q").show();
+				$("#instructionset").html("<fieldset><li>Answer each question.</li> <li>You may replay the video as much as you like.</li><li><font color=cyan>Tips</font> : Fast forwarding the video will help you to see the body gestures more visibly.</li><li>After you have answered the questions, press submit to move to the next step.</li>");
+				$("#ffwd").show();
+
+				//document.getElementById('mturk_info').style.display = 'none';
+				//document.getElementById('mturk_form').style.display = 'block';
+			}
+		}
+		else
+		{
+			//$('#mturk_info2').html("");
+		}
+	}else{
     var graphWidth = $("#timelineChartdiv svg > g:nth-last-child(15) > rect:last-child").attr("width");
     var translateX = parseFloat(graphWidth)*myVid.currentTime/myVid.duration;
     //$("#timelineChartdiv svg > g:nth-last-child(9)").attr("transform","translate("+translateX+",0)");
@@ -32,6 +78,7 @@ $('#video').on('timeupdate',function(){
     //$("#timelineChartdiv svg > g:nth-last-child(8) > g").html("<path cs='100,100' d='M0.5,0.5 L28.5,0.5 L34.5,-4.5 L40.5,0.5 L68.5,0.5 L68.5,23.5 L0.5,23.5 L0.5,0.5 Z' fill='#FFFFFF' stroke='#FFFFFF' fill-opacity='1' stroke-width='1' stroke-opacity='1'></path>");
     $("#timelineChartdiv svg > g:nth-last-child(8) > g > path:last-child").attr("transform","translate("+translateX+",0)");
     $("#timelineChartdiv svg > g:nth-last-child(8) > g > path:last-child").attr("visibility","visible");
+	}
 });
 
 $("#ffwd").click(function() { // button function for 3x fast speed forward
@@ -60,12 +107,19 @@ $('input[name=realtime]').change(function(){
     {
         // Checkbox is checked.
         myVid.playbackRate = 1.0;
+		
+		if(myVid.paused)
+			$("#ffwd").html("&#9654;");
+
     }
     else
     {
         // Checkbox is not checked.
         myVid.playbackRate = 5.0;
         partialer = false;
+		
+		if(myVid.paused)
+			$("#ffwd").html("&#9654;&#9654;");
     }    
 
 });
@@ -144,9 +198,13 @@ function drawPieChart(data) {
     piechartDataProvider = [];
 
     for(var i = 0; i < data.length; i++)
-        piechartDataProvider.push({"pattern": data[i].category, "color": data[i].segments[0].color, count : data[i].segments.length});
-
-    var piechart = AmCharts.makeChart( "pieChartdiv", {
+	{
+		if(i == 0)
+			piechartDataProvider.push({"pattern": data[i].category, "color": data[i].segments[0].color, count : data[i].segments.length});
+	    else
+			piechartDataProvider.push({"pattern": data[i].category, "color": "#848484", count : data[i].segments.length});
+	}
+    piechart = AmCharts.makeChart( "pieChartdiv", {
       "type": "pie",
       "theme": "dark",
       "dataProvider": piechartDataProvider,
@@ -241,7 +299,6 @@ function drawTimeline() {
 		console.log(csv);
 	
 	//console.log(myVid.duration);
-    var chartData = [];
     //console.log(Math.floor(csv['data'][csv['data'].length-2][0]));
     var lastindex = csv['data'].length-1;
 
@@ -294,8 +351,6 @@ function drawTimeline() {
 
     console.log(chartData);
 
-
-
 	chart = AmCharts.makeChart( "timelineChartdiv", {
 		"type": "gantt",
 		"theme": "dark",
@@ -304,6 +359,7 @@ function drawTimeline() {
 		"dataDateFormat":"NN:SS",
 		"balloonDateFormat": "NN:SS",
 		"columnWidth": 0.5,
+		"addClassNames" : true,
 		"valueAxis": {
 			"type": "date",
 			"minimum": 0,
@@ -312,7 +368,7 @@ function drawTimeline() {
 		"brightnessStep": 0,
 		"graph": {
 			"fillAlphas": 1,
-			///"balloonText": "<b>[[task]]</b>: [[open]] [[value]]"
+			//"balloonText": "<b>[[task]]</b>: [[open]] [[value]]"
 			//"balloonText": "<b>[[task]]</b>: starttime:[[start]] endtime:[[end]]"
             "balloonText": ""
 		},
@@ -353,7 +409,7 @@ function drawTimeline() {
     
     //chart.zoomToIndexes(0, 0);
     drawPieChart(chartData);
-
+	
 
     /*var selectorHtml ="";
     for(var i = 0; i <= Math.floor(csv['data'][csv['data'].length-1][0]); i++)
@@ -385,14 +441,125 @@ function zoomToIndexes(chart, start, end)
     myVid.playbackRate = 5.0;
 }
 
+function clickYes(itemrowposition, itemcolumnposition)
+{
+	chartData[itemrowposition]['segments'][itemcolumnposition].color = "#00FF00";
+	chart.validateData();
+	chart.zoom(itemrowposition,itemrowposition);
+	$(".yes").addClass("disabled");
+	$(".no").removeClass("disabled");
+	
+	transition();
+}
+
+function transition()
+{
+	var overlapflag = false;
+	var maxtime = myVid.duration;
+	var segments = chartData[current]['segments'];
+	for(var i = 0; i < segments.length; i++) {
+		//console.log(segments[i].color);
+		if(segments[i].color !== "#FF0000" && segments[i].color !== "#00FF00" && segments[i].end <= maxtime)
+		{
+			//test if an overlap has a been answered
+			if(i == segments.length-1 && segments[i].start == 0)
+			{
+				for(var j = 0; j < segments.length-1; j++ )
+				{
+					//if(segments[i].start < segments[j].end && segments[j].start < segments[i].end)
+					if(segments[j].start == 0)
+					{
+							/*if(segments[j].color == "#FF0000" || segments[j].color == "#00FF00")
+							{
+								console.log(segments[i].task);	
+								console.log(segments[j].task);	
+							}
+							else
+							{
+								console.log(segments[i].task);	
+								console.log(segments[j].task);
+								return;;
+							}*/
+						overlapflag = true;
+							
+					}
+				}
+				
+				if(overlapflag == false)
+				{
+					console.log(segments[i].task);
+					return;
+				}	
+			}else{
+				console.log(segments[i].task);
+				return;
+			}
+		}
+	
+	}
+	console.log("hello");
+	
+	clickedallflag = true;
+	$('.individual-survey').css("display", "none");
+	$('#surveyq').css("display", "block");
+
+	//$('#next').removeClass('disabled');
+}
+
+function clickNo(itemrowposition, itemcolumnposition)
+{
+	chartData[itemrowposition]['segments'][itemcolumnposition].color = "#FF0000";
+	chart.validateData();
+	chart.zoom(itemrowposition,itemrowposition);
+	$(".no").addClass("disabled");
+	$(".yes").removeClass("disabled");
+	
+	transition();
+}
+
 function handleClick(event)
 {
+	console.log(event.item);
+	//var column = event.item.columnGraphics.node.childNodes[0];
+    //column.setAttribute("stroke","#000000");
+    //column.setAttribute("fill","#FFFFFF");
+
+	if(!clickedallflag)
+	{
+
+	$("#surveyq").hide();
+	$(".individual-survey").show();
+
+	var itemrowposition = event.item.index; 
+	var itemcolumnposition = event.item.graph.customData.task;
+	itemcolumnposition = (itemcolumnposition + "").split(".")[1];
+	console.log(chartData);
+	var itemcolor = chartData[itemrowposition]['segments'][itemcolumnposition].color;
+	
+	var disabledyes = "";
+	var disabledno = "";
+	if(itemcolor != "#FFFFFF")
+	{
+		if(itemcolor == "#00FF00")
+		{
+			disabledyes = "disabled";
+		}else if(itemcolor == "#FF0000"){
+			disabledno = "disabled";
+		}else{
+			chartData[itemrowposition]['segments'][itemcolumnposition].color = "#FFFFFF";
+			chart.validateData();
+			chart.zoom(event.item.index,event.item.index);
+		}
+	}
+	
+	$(".individual-survey").html("<div class='individual-prompt'><p>Does the skeleton matches with the body gesture of the person?</p> <p class='tip'>You can adjust the slider below the skeleton to make the movements more prominent or subtle. </p> <button type='button' class = 'btn btn-default yes "+disabledyes+"' onclick=clickYes("+itemrowposition + "," + itemcolumnposition +")>Yes</button><button type='button' class='btn btn-default no "+disabledno+"' onclick=clickNo("+itemrowposition + "," + itemcolumnposition +")>No</button></div>");
+	}
     //$('#realtime').prop('checked', true);
     myVid.playbackRate = 1.0;
     clearAllTimeout(loopstopper);
     clearAllInterval(intervalRewind);
 	myVid.currentTime = event.item.graph.customData.start;
-	console.log(event.item.graph.customData);
+	console.log("hello",event.item.graph.customData);
     //alert(event.item.category + ": " + event.item.graph.customData.start);
     showPattern(patternIndex[event.item.index],event.item.graph.customData.start,event.item.graph.customData.end, true);
     myVid.play();
@@ -879,12 +1046,21 @@ function getQSParam(name) {
 }
 
 function complete_presurvey() {
+	$("#topContainer").removeClass("col-md-6");
+	$("#topContainer").removeClass("col-lg-6");
     $('#videoContainerOuter').addClass("col-md-6 col-lg-6");
     $('#skeletonContainerOuter').css("display", "block");
     $('#pre-q').css("display", "none");
     $('#in-q').css("display", "block");
     //showPattern(0, 0, 0, false);
     zoomToIndexes(chart,0,0);
+	stage = 2;
+	$("#play").hide();
+	$("#ffwd").css("width", "55%");
+	$("#realcheck").show();
+	$("#instructionset").hide();
+
+
 }
 
 function post_survey() {
@@ -892,47 +1068,62 @@ function post_survey() {
 	$('#turk-post').css("display", "block");
 }
 
-var current = 0;
-
 function next_pattern() {
-	 myVid.pause();
-    console.log(current);
+	myVid.pause();
+	$("#pieChartdiv").show();
+	$(".individual-survey").show();
+	$(".individual-survey").html("<div class = 'individual-holder'>Please click on each <b>time instance</b> above to answer a question. You can proceed to the next step when you are done.</div>");
+	clickedallflag = false;
+    
+	console.log(current);
     if(current < numofPatterns)
     {
         if(current == (numofPatterns-1))
         {
-            $("#next").text('Finish Reviewing');
+			$("#next").text('Complete Survey');
         }
 
         $('#next').addClass('disabled');
+		$('#surveyq').css("display", "none");
         $('#p'+current).css("display", "none");
         current++;
         zoomToIndexes(chart, current, current);
         $('#p'+current).css("display", "block");
+		
+		piechartDataProvider[current].color = chartData[current].segments[0].color;
+		piechart.validateData();
+		
     }else{
-        $('#in-q').css("display", "none");
-        $('#post-q').css("display", "block");
+		$("#next").attr('type', 'submit');
+		$.ajax({
+			type: 'POST',
+			data: {chartData: chartData, id: folder_dir, datakey:datakey },
+			dataType: 'json',
+			url: 'db.php',
+		});
+			
+		$('#in-q').css("display", "none");
+        //$('#post-q').css("display", "block");
         $("#topContainer").css("display", "none");
-
     }
 }
 
 $('input[type=radio]').change( function() {
     //alert($("input[name='entry.298715203']:checked").val());
-    if($("input[name='entry.298715203']:checked").val() != undefined && $("input[name='entry.402079925']:checked").val() != undefined && $("input[name='entry.1350142475']:checked").val() != undefined && $("input[name='entry.444518839']:checked").val() != undefined)
+    if($("input[name='entry.298715203']:checked").val() != undefined && $("input[name='entry.402079925']:checked").val() != undefined && $("input[name='entry.1350142475']:checked").val() != undefined && $("input[name='entry.444518839']:checked").val() != undefined && $("input[name='entry.1973339660']:checked").val() != undefined && $("input[name='entry.2021115824']:checked").val() != undefined && $("input[name='entry.543518954']:checked").val() != undefined && $("input[name='entry.122496811']:checked").val() != undefined && $("input[name='entry.951552620']:checked").val() != undefined)
     {
         $('#complete-1').removeClass('disabled');
     }
-
+	
     if(current == 0)
     {
-       if($("input[name='entry.122496811']:checked").val() != undefined && $("input[name='entry.951552620']:checked").val() != undefined && $("input[name='entry.1904638195']:checked").val() != undefined)
+       if($("input[name='entry.1904638195']:checked").val() != undefined)
        {
             $('#next').removeClass('disabled');
 
        }
     }else if (current == 1){
-       if($("input[name='entry.1577018710']:checked").val() != undefined && $("input[name='entry.92779325']:checked").val() != undefined && $("input[name='entry.1346396188']:checked").val() != undefined)
+       if($("input[name='entry.1346396188']:checked").val() != undefined)
        {
 
             $('#next').removeClass('disabled');
@@ -940,14 +1131,12 @@ $('input[type=radio]').change( function() {
        }
 
     }else if (current == 2){
-       if($("input[name='entry.2056866798']:checked").val() != undefined && $("input[name='entry.458959850']:checked").val() != undefined && $("input[name='entry.1686120955']:checked").val() != undefined)
+       if($("input[name='entry.1686120955']:checked").val() != undefined)
        {
             $('#next').removeClass('disabled');
-
-
        }
     }else if (current == 3){
-       if($("input[name='entry.873246705']:checked").val() != undefined && $("input[name='entry.1206863554']:checked").val() != undefined && $("input[name='entry.25292253']:checked").val() != undefined)
+       if($("input[name='entry.25292253']:checked").val() != undefined)
        {
 
             $('#next').removeClass('disabled');
@@ -955,17 +1144,17 @@ $('input[type=radio]').change( function() {
        }
 
     }else if (current == 4){
-       if($("input[name='entry.1466720155']:checked").val() != undefined && $("input[name='entry.1761467458']:checked").val() != undefined && $("input[name='entry.1381118731']:checked").val() != undefined)
+       if($("input[name='entry.1381118731']:checked").val() != undefined)
        {
             $('#next').removeClass('disabled');
 
        }
     }
 
-    if($("input[name='entry.1973339660']:checked").val() != undefined && $("input[name='entry.2021115824']:checked").val() != undefined && $("input[name='entry.543518954']:checked").val() != undefined && $("input[name='entry.840577731']:checked").val() != undefined)
+    /*if($("input[name='entry.1973339660']:checked").val() != undefined && $("input[name='entry.2021115824']:checked").val() != undefined && $("input[name='entry.543518954']:checked").val() != undefined && $("input[name='entry.840577731']:checked").val() != undefined)
     {
         $('#complete').removeClass('disabled');
-    }
+    }*/
 
 
 });

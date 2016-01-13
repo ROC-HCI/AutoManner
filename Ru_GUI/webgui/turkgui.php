@@ -1,13 +1,16 @@
 <?php 
-    $id = $_GET['id']; 
-    if($id%2 == 0)
+    $id = base64_decode($_GET['id']);
+	
+    /*if($id%2 == 0)
     { 
       if($id*10%2 == 0)
         $id = $id."_random";
     }else{
       if($id*10%2 == 1)
         $id = $id."_random";
-    }
+    }*/
+	$subid = str_replace("_random", "", $id);
+
 	$datakey = MD5(date('Y-m-d_H:i:s')."_".rand());
 
 ?>
@@ -39,6 +42,7 @@
 
     <!--script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script-->
     <script>
+	var id = <?php echo $subid; ?>;
 	var submitted = false;
     var isFirstVid = "<?php if($id*10%10 == 1) echo 'true'; else echo 'false'; ?>";
     var folder_dir = "<?php echo $id; ?>";
@@ -80,7 +84,8 @@
 			range.select();
 		  }
 	   };
-	   onclick
+	   
+	   var datakey = "<?php echo $datakey; ?>";
     </script>
   </head>
   <body>
@@ -89,21 +94,21 @@
     <nav class="navbar navbar-inverse navbar-static-top" height = 10%>
     <div class="container-fluid">
       <div class="navbar-header" style="width:100%;">
-        <a class="navbar-brand" href="#">RocSpeak Body Language Study</a>		
+        <a class="navbar-brand" href="#">AutoManner</a>		
         <a class="navbar-brand" style="color:red;float:right;" href="http://goo.gl/forms/WRXzw3RXTj">Bug Report</a>
       </div>
     </div>
     </nav>
     <div  id="mainContainer" height = 90% >
-      <div id ="topContainer" class="row" style="height:50%;background-color:#ffffff;border-radius:15px;padding-top:10px;padding-bottom:10px;">
+      <div id ="topContainer" class="row col-md-offset-3 col-lg-offset-3 col-md-6 col-lg-6" style="height:50%;background-color:#ffffff;border-radius:15px;padding-top:10px;padding-bottom:10px;">
         <div id="videoContainerOuter">
           <div id="videoContainer" >
       		<video id = "video" >
-      		  <source src="Data/<?php echo $id; ?>/<?php echo $_GET['id']; ?>.mp4" id = "video" type="video/mp4">
-      		  <source src="Data/14.1/14.1.ogg" type="video/ogg">
+      		  <source src="Data/<?php echo $id; ?>/<?php echo $subid; ?>.mp4" id = "video" type="video/mp4">
       		  Your browser does not support HTML5 video.
       		</video>
           </div>
+		  
           <div id = "vidcontrols">
             <div class = "row">
                 <div class = "col-md-7 col-md-offset-3 col-lg-7 col-md-offset-3">
@@ -123,8 +128,10 @@
           <div class = "row">
                <div class = "col-md-7 col-md-offset-3 col-lg-7 col-md-offset-3">
                       <button type = "button" id="reset" title="fast forward">&#8634;</button>
-                      <button type = "button" id="ffwd" title="fast forward">&#9654;</button>
-                      <label style="font-size:85%;width:25%;" class="checkbox-inline">
+					  <button type = "button" id="play" title="normal speed">&#9654;</button>
+                      <button type = "button" id="ffwd" title="fast forward">&#9654;&#9654;</button>
+
+                      <label id ="realcheck" style="font-size:85%;width:25%;display:none" class="checkbox-inline">
                         <input type="checkbox" name = "realtime" id="realtime" value="option1"> realtime w/audio
                       </label>
                 </div>
@@ -134,26 +141,40 @@
           </div>
         </div>
         </div>
+		
+		<div id = "instructionset">
+			<fieldset>
+			<center><p>Welcome to the RocSpeak Body Language Study! </p></center>
+			<p>Please follow the instructions that will appear during each stages of the study.</p>
+			<li>Please use <font color=cyan>Google Chrome</font>, other browsers may experience issues.</li>
+			<li>Play the video at least once. A survey will appear after you complete this step.</li>
+			<li>Please <font color=cyan>DO NOT</font> skip to the end, that will keep the survey hidden and you'll need to watch the video again.</li>
+			<li>The HIT will take approximately <font color=cyan>10-15</font> minutes to complete.</li>
+			<div id="mturk_info"></div>
+			</fieldset>
+		</div>
         <div class="col-md-6 col-lg-6" id="skeletonContainerOuter" style="display:none"> 
 		  <div id = "display" style="padding:10 10 10 10;position:absolute;"></div>
           <div id = "skeletonContainer"><img src="skeleholder.png" id="skeleholder"/></div>
           <div id = "slidercontainer">
             <div class="col-md-2 col-lg-2"><button onclick = "playskeleton();" type = "button" id="skeleplay">&#10074;&#10074;</button></div>
-            <div class="col-md-4 col-lg-4"><label for="amount"> Prominence:</label>
+            <div style="display:none" class="col-md-4 col-lg-4"><label for="amount"> Prominence:</label>
             <input type="text" id="amount" readonly style="border:0; color:#f6931f;width:20px;font-weight:bold;"></div>
-            <div class="col-md-6 col-lg-6"><div id="slider"></div></div>
+            <div style="display:none" class="col-md-6 col-lg-6"><div id="slider"></div></div>
           </div>
         </div>
 
       </div>
+
       <div class = "row" id = "pre-q">
           <fieldset>
-            <center><div id = "movewarning">You are not showing enough movements. Please move more and move purposefully.</div></center>
-              <input type="hidden" name="entry.1933898981" class="ss-q-short" id="entry_1933898981" dir="auto" aria-label="id  " aria-="true" title="" value="<?php echo $_GET['id']; ?>">
+            <center><div id = "movewarning"></div></center>
+              <input type="hidden" name="entry.1933898981" class="ss-q-short" id="entry_1933898981" dir="auto" aria-label="id  " aria-="true" title="" value="<?php echo $id; ?>">
              <div class = "row row-margin">
-             <div class="col-md-5 col-lg-5">Overall, I'm happy with the quality of the person's speech.</div>
-              <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
-              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
+             <div class = "question">Overall rating for this speech is :</div>
+              <div class="col-md-3 col-lg-3 centering">[Terrible]</div>
+			  <div class="col-md-6 col-lg-6 centering">
+              <div class=" btn-group" data-toggle="buttons">
                 <label class="btn btn-default">
                     <input type="radio" id="group_298715203_1" name="entry.298715203" value="1" /> 1
                 </label> 
@@ -176,13 +197,15 @@
                     <input type="radio" id="group_298715203_7" name="entry.298715203" value="7"/> 7
                 </label> 
             </div>
-            <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
-            </div>
+			</div>
+            <div class="col-md-3 col-lg-3 centering">[Excellent]</div>
+			</div>
 
             <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The person was purposely moving about.</div>
-              <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
-              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
+            <div class = "question">I would like to listen to another speech from this speaker.</div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			  <div class="col-md-6 col-lg-6 centering">
+              <div class="btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
                       <input type="radio" name="entry.402079925" value="1" id="group_402079925_1"/> 1
                   </label> 
@@ -205,12 +228,14 @@
                       <input type="radio" name="entry.402079925" value="7" id="group_402079925_7"/> 7
                   </label> 
               </div>
-              <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
+			  </div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
           </div>
           <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The person was using a variety of gestures.</div>
-             <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
-             <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
+            <div class = "question">The speaker displayed effective body language.</div>
+             <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			 <div class="col-md-6 col-lg-6 centering">
+             <div class="btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
                       <input type="radio" name="entry.1350142475" value="1" id="group_1350142475_1"/> 1
                   </label> 
@@ -233,12 +258,14 @@
                       <input type="radio" name="entry.1350142475" value="7" id="group_1350142475_7"/> 7
                   </label> 
               </div>
-              <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
+			  </div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
             </div>
           <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The person's gestures were appropriate with the speech.</div>
-            <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
-             <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
+            <div class = "question">The speaker's body language was appropriate with the speech.</div>
+             <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			 <div class="col-md-6 col-lg-6 centering">
+             <div class="btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
                       <input type="radio" name="entry.444518839" value="1" id="group_444518839_1" /> 1
                   </label> 
@@ -261,9 +288,164 @@
                       <input type="radio" name="entry.444518839" value="7" id="group_444518839_7" /> 7
                   </label> 
               </div>
-              <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
+			  </div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
             </div>
 
+			
+		<div class = "row row-margin">
+             <div class = "question">The speaker's body language was synchronized with the story.</div>
+             <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			 <div class="col-md-6 col-lg-6 centering">
+             <div class="btn-group" data-toggle="buttons">
+                <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_1" name="entry.1973339660" value="1"/> 1
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_2" name="entry.1973339660" value="2"/> 2
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_3" name="entry.1973339660" value="3"/> 3
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_4" name="entry.1973339660" value="4"/> 4
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_5" name="entry.1973339660" value="5"/> 5
+                </label>
+                  <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_6" name="entry.1973339660" value="6"/> 6
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_1973339660_7" name="entry.1973339660" value="7"/> 7
+                </label> 
+            </div>
+			</div>
+            <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
+            </div>
+
+            <div class = "row row-margin">
+            <div class = "question">The speaker was moving about the space around him/her.</div>
+                <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+				<div class="col-md-6 col-lg-6 centering">
+                <div class="btn-group" data-toggle="buttons">
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="1" id="group_2021115824_1"/> 1
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="2" id="group_2021115824_2"/> 2
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="3" id="group_2021115824_3"/> 3
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="4" id="group_2021115824_4"/> 4
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="5" id="group_2021115824_5"/> 5
+                  </label>
+                    <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="6" id="group_2021115824_6"/> 6
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.2021115824" value="7" id="group_2021115824_7"/> 7
+                  </label> 
+              </div>
+			  </div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
+          </div>
+          <div class = "row row-margin">
+            <div class = "question">The speaker was using a variety of gestures.</div>
+             <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			 <div class="col-md-6 col-lg-6 centering">
+             <div class="btn-group" data-toggle="buttons">
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="1" id="group_543518954_1"/> 1
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="2" id="group_543518954_2"/> 2
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="3" id="group_543518954_3"/> 3
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="4" id="group_543518954_4"/> 4
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="5" id="group_543518954_5"/> 5
+                  </label>
+                    <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="6" id="group_543518954_6"/> 6
+                  </label> 
+                  <label class="btn btn-default">
+                      <input type="radio" name="entry.543518954" value="7" id="group_543518954_7"/> 7
+                  </label>
+              </div>
+			  </div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div> 
+            </div>
+			
+		   <div class = "row row-margin">
+			  <div class = "question">The speaker look spontaneous with his/her gestures.</div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			 <div class="col-md-6 col-lg-6 centering">
+             <div class="btn-group" data-toggle="buttons">
+                <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_1" name="entry.122496811" value="1"  /> 1
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_2" name="entry.122496811" value="2" /> 2
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_3" name="entry.122496811" value="3" /> 3
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_4" name="entry.122496811" value="4" /> 4
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_5" name="entry.122496811" value="5" /> 5
+                </label>
+                  <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_6" name="entry.122496811" value="6" /> 6
+                </label> 
+                <label class="btn btn-default">
+                    <input type="radio" id="group_122496811_7" name="entry.122496811"  value="7" /> 7
+                </label> 
+            </div>
+			</div>
+            <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
+           	</div>
+
+           	<div class = "row row-margin">
+            <div class = "question">The speaker was able to add further meaning to their story through his/her gestures.</div>
+             <div class="col-md-3 col-lg-3 centering">[Strongly Disagree]</div>
+			 <div class="col-md-6 col-lg-6 centering">
+             <div class="btn-group" data-toggle="buttons">
+	                <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="1" id="group_951552620_1" /> 1
+	                </label> 
+	                <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="2" id="group_951552620_2" /> 2
+	                </label> 
+	                <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="3" id="group_951552620_3" /> 3
+	                </label> 
+	                <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="4" id="group_951552620_4" /> 4
+	                </label> 
+	                <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="5" id="group_951552620_5" /> 5
+	                </label>
+	                  <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="6" id="group_951552620_6" /> 6
+	                </label> 
+	                <label class="btn btn-default">
+	                    <input type="radio" name="entry.951552620" value="7" id="group_951552620_7" /> 7
+	                </label> 
+	            </div>
+			  </div>
+              <div class="col-md-3 col-lg-3 centering">[Strongly Agree]</div>
+	        </div>
           <div class = "row row-margin">
             <center><button class="btn btn-default disabled" type="<?php if($_GET['id']*10%10 == 3) echo "submit"; else echo "button"; ?>" id= "complete-1" onclick="complete_presurvey();">Complete</button></center>
           </div>
@@ -274,9 +456,11 @@
       <div class ="row" id = 'in-q' style="display:none">
           <div class="col-md-8 col-lg-8" id = "selector"><!--div id = "patternselector" class = "btn-group"></div-->
           <div id = "timelineChartdiv"></div>
+		  <div class="individual-survey text-center"><div class = "individual-holder">Please click on each <b>time instance</b> above to answer a question. You can proceed to the next step when you are done.</div></div>
+
           <div id = "surveyq">
             <fieldset id = "p0">
-			       <div class = "row row-margin">
+			 <!--div class = "row row-margin">
 			       <div class="col-md-5 col-lg-5">The body movement showed by the skeleton is something the person actually did.</div>
               <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
               <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
@@ -332,9 +516,9 @@
 	                </label> 
 	            </div>
               <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
-	        </div>
+	        </div-->
            	<div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful.</div>
+            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful in the context.</div>
              <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
 	                <label class="btn btn-default">
@@ -369,10 +553,9 @@
           	  <div class="col-md-5 col-lg-5"> I want to name this pattern as:   </div>
           	  <div class="col-md-6 col-lg-6"><input type="text" class = "textbox" id="entry_1556891077" name="entry.1556891077" placeholder="pattern name"></div>
           	</div-->  
-          </fieldset>
-
+          </fieldset>		  
             <fieldset id = "p1" style="display:none">
-             <div class = "row row-margin">
+             <!--div class = "row row-margin">
              <div class="col-md-5 col-lg-5">The body movement showed by the skeleton is something the person actually did.</div>
               <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
               <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
@@ -428,9 +611,9 @@
                   </label> 
               </div>
               <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
-          </div>
+          </div-->
             <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful.</div>
+            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful in the context.</div>
             <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
@@ -468,7 +651,7 @@
           </fieldset>
 
           <fieldset id = "p2" style="display:none">
-             <div class = "row row-margin">
+             <!--div class = "row row-margin">
              <div class="col-md-5 col-lg-5">The body movement showed by the skeleton is something the person actually did.</div>
               <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
               <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
@@ -524,9 +707,9 @@
                   </label> 
               </div>
               <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
-          </div>
+          </div-->
             <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful.</div>
+            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful in the context.</div>
             <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
@@ -564,7 +747,7 @@
           </fieldset>
 
             <fieldset id = "p3" style="display:none">
-             <div class = "row row-margin">
+             <!--div class = "row row-margin">
              <div class="col-md-5 col-lg-5">TThe body movement showed by the skeleton is something the person actually did.</div>
               <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
               <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
@@ -620,9 +803,9 @@
                   </label> 
               </div>
               <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
-          </div>
+          </div-->
             <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful.</div>
+            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful in the context.</div>
              <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
@@ -660,7 +843,7 @@
           </fieldset>
 
           <fieldset id = "p4" style="display:none">
-             <div class = "row row-margin">
+             <!--div class = "row row-margin">
              <div class="col-md-5 col-lg-5">The body movement showed by the skeleton is something the person actually did.</div>
               <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
               <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
@@ -716,10 +899,10 @@
                   </label> 
               </div>
               <div class="col-md-2 col-lg-2">[Strongly Agree]</div>
-          </div>
+          </div-->
 
           <div class = "row row-margin">
-            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful.</div>
+            <div class="col-md-5 col-lg-5">The body movement pattern is meaningful in the context.</div>
             <div class="col-md-2 col-lg-2">[Strongly Disagree]</div>
              <div class="col-md-3 col-lg-3 btn-group" data-toggle="buttons">
                   <label class="btn btn-default">
@@ -768,7 +951,7 @@
           <div class="col-md-4 col-lg-4" id = "pieChartdiv"></div>
       </div>
 
-    <div class = "row" id = "post-q" style="display:none">
+    <!--div class = "row" id = "post-q" style="display:none">
           <fieldset>
              <div class = "row row-margin">
              <div class="col-md-6 col-lg-6">How helpful was the feedback?</div>
@@ -887,13 +1070,14 @@
              <div class = "row row-margin">
                 <div class="col-md-5 col-lg-5"></div>
                 <div class="col-md-6 col-lg-6">
-                    <!--button id = "previous">Previous</button-->
-					<input type="hidden" class = "textbox" id="entry_247949180" name="entry.247949180" value="<?php echo $datakey; ?>">
                     <input id="complete" type="submit" name="submit" value="Complete Post-Survey" id="ss-submit" class="jfk-button jfk-button-action btn btn-default disabled">
-              </div>
+              </div!>
             </div>
           </fieldset>
-      </div>
+
+      </div-->
+	  <input type="hidden" class = "textbox" id="entry_247949180" name="entry.247949180" value="<?php echo $datakey; ?>">
+
       </form>
 	  <fieldset style="display:none;" id = "turk-post" >
 	  <div class = "row row-margin">

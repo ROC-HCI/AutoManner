@@ -46,7 +46,7 @@
     <nav class="navbar navbar-inverse navbar-static-top" height = 10%>
     <div class="container-fluid">
       <div class="navbar-header">
-        <a class="navbar-brand" href="#">RocSpeak Body Language Interface Demo</a>
+        <a class="navbar-brand" href="#">AutoManner</a>
       </div>
     </div>
     </nav>
@@ -95,9 +95,9 @@
           <div id = "skeletonContainer"><img src="skeleholder.png" id="skeleholder"/></div>
           <div id = "slidercontainer">
             <div class="col-md-2 col-lg-2"><button onclick = "playskeleton();" type = "button" id="skeleplay">&#10074;&#10074;</button></div>
-            <div class="col-md-4 col-lg-4"><label for="amount"> Prominence:</label>
+            <div style="display:none;" class="col-md-4 col-lg-4"><label for="amount"> Prominence:</label>
             <input type="text" id="amount" readonly style="border:0; color:#f6931f; width:20px;font-weight:bold;"></div>
-            <div class="col-md-6 col-lg-6"><div id="slider"></div></div>
+            <div style="display:none;" class="col-md-6 col-lg-6"><div id="slider"></div></div>
           </div>
         </div>
 

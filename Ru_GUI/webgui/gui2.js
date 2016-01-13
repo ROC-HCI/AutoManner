@@ -70,7 +70,6 @@ $('input[name=realtime]').change(function(){
 
 });
 
-
 $("#reset").click(function() { // button function for 3x fast speed forward
     //clearAllTimeout(loopstopper);
     myVid.currentTime = 0;
@@ -154,18 +153,10 @@ function drawPieChart(data) {
       "valueField": "count",
       "colorField" : "color",
       "titleField": "pattern",
-	  "pullOutOnlyOne": true,
       "export": {
       "enabled": true}
     });
-	
-	piechart.addListener("clickSlice", handleClickPie);
-}
 
-function handleClickPie(event)
-{
-	showPattern(patternIndex[event.dataItem.index],0,0,false);
-	console.log(event.dataItem.index);
 }
 
 function drawTimeline() {
@@ -262,15 +253,15 @@ function drawTimeline() {
         console.log(i);
         chartData.push({"category": "", "segments" : []});
     }
-    
+    //console.log(chartData);
+
 	//console.log(chartData["category"]);
 	//console.log(chartData[0]["category"]);
 
 	for(var i = 1; i < csv['data'].length; i++)
 	{
         console.log(csv['data'][i]);
-        console.log(Math.floor(csv['data'][i][0]), csv['data'][i][1], csv['data'][i][2]);
-
+        //Math.floor(csv['data'][i][0])
 		chartData[Math.floor(csv['data'][i][0])]['segments'].push({
 			"start": csv['data'][i][1],
 			"end": csv['data'][i][2],
@@ -278,14 +269,13 @@ function drawTimeline() {
 			"task": csv['data'][i][0],
         });
 	}
-	
+
     chartData.sort(function(a, b){return b['segments'].length-a['segments'].length});
 
-	console.log(chartData);
     for(var i = 0; i < chartData.length; i++)
     {
         chartData[i].category = "Pattern " + (i+1);
-        if(chartData[i].segments.length < 1)
+        if(chartData[i].segments.length <=1)
         {
             //console.log("hi");
             chartData.length = i;
@@ -295,7 +285,12 @@ function drawTimeline() {
         //console.log("patternIndex", patternIndex);
     }
 
+    if(chartData.length < 3 && isFirstVid)
+        $("#movewarning").show();
+
     numofPatterns = chartData.length-1;
+
+
     console.log(chartData);
 
 
@@ -535,7 +530,6 @@ function setupSkele()
 
 function showPattern(pattern, start, end, partial)
 {
-	$("#display").html("<font size='5' color='"+color[pattern]+"'>Pattern "+(patternIndex.indexOf(pattern)+1)+"</font>");
     $("#skeleplay").html("&#10074;&#10074;");
 
     if(setup == false)
@@ -889,11 +883,6 @@ function complete_presurvey() {
     $('#in-q').css("display", "block");
     //showPattern(0, 0, 0, false);
     zoomToIndexes(chart,0,0);
-}
-
-function post_survey() {
-	$('#post-q').css("display", "none");
-	$('#turk-post').css("display", "block");
 }
 
 var current = 0;

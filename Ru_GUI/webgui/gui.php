@@ -30,7 +30,7 @@
 
     <link href="flatui/bootstrap/css/bootstrap.css" rel="stylesheet">
     <!--<link href="flatui/css/flat-ui.css" rel="stylesheet">-->
-    <link href="gui.css" rel="stylesheet">
+    <link href="gui2.css" rel="stylesheet">
     
     <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
 
@@ -59,7 +59,7 @@
     <nav class="navbar navbar-inverse navbar-static-top" height = 10%>
     <div class="container-fluid">
       <div class="navbar-header">
-        <a class="navbar-brand" href="#">RocSpeak Body Language Interface Demo</a>
+        <a class="navbar-brand" href="#">AutoManner</a>
       </div>
     </div>
     </nav>
@@ -108,7 +108,7 @@
           <div id = "skeletonContainer"><img src="skeleholder.png" id="skeleholder"/></div>
           <div id = "slidercontainer">
             <div class="col-md-2 col-lg-2"><button onclick = "playskeleton();" type = "button" id="skeleplay">&#10074;&#10074;</button></div>
-            <div class="col-md-4 col-lg-4"><label for="amount"> Alpha:</label>
+            <div class="col-md-4 col-lg-4"><label for="amount"> Prominence:</label>
             <input type="text" id="amount" readonly style="border:0; color:#f6931f; font-weight:bold;"></div>
             <div class="col-md-6 col-lg-6"><div id="slider"></div></div>
           </div>
@@ -866,7 +866,7 @@
       </form>
     </div>
     <script src="OrbitControls.js"></script>
-    <script src="gui.js"></script>
+    <script src="gui2.js"></script>
     <script>
       var myVid = document.getElementById("video");
       if (myVid.duration) {

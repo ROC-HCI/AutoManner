@@ -33,12 +33,11 @@
 
 
 #ffwd {
-  width: 15%;
-  display:none;
+  width: 55%;
 }
 
 #play {
-  width: 55%;
+  width: 15%;
 }
 
 #reset {
@@ -96,47 +95,9 @@
   color:#ffffff;
   border-style: solid;
   border-width: medium;
-  display:none;
 }
 
-#instructionset{
-  height:100%;
-  background: #3f3f4f;
-  color:#ffffff;
-  border-style: solid;
-  border-width: medium;
-}
-
-.tip {
-	display:none;
-	color: cyan;
-	margin-top: -10px;
-}
-
-.centering {
-    text-align:center;
-	margin: auto;
-}
-
-.question {
-	color:cyan;
-	padding-left: 25px;
-	padding-top: 10px;
-	padding-bottom: 10px;
-}
 #pre-q {
-  display:none;
-  //height:45%;
-  height:100%;
-  background: #3f3f4f;
-  color:#ffffff;
-  border-style: solid;
-  border-width: medium;
-  overflow-x: scroll;
-
-}
-
-#post-q {
   height:45%;
   background: #3f3f4f;
   color:#ffffff;
@@ -144,7 +105,7 @@
   border-width: medium;
 }
 
-#turk-post{
+#post-q {
   height:45%;
   background: #3f3f4f;
   color:#ffffff;
@@ -162,6 +123,7 @@
 #ss-submit  {
   color:#000000;
 }
+
 
 fieldset {
   padding: 2% 1% 0 4%;
@@ -182,36 +144,6 @@ fieldset {
   background: #3f3f4f;
   color:#ffffff;  
 }
-
-.individual-survey {
-  height:60%;
-  background: #3f3f4f;
-  color:#ffffff;  
-  display:block;
-  border-style: solid;
-  border-width: medium;
-}
-
-.individual-prompt {
-  margin-top:5%;
-  
-}
-
-.individual-holder {
-  margin-top:5%;
-  
-}
-
-.yes{
-	color:#00FF00;
-	margin: 10px;
-}
-
-.no{
-	color:#FF0000; 
-	margin: 10px;
-}
-
 #video{
 	height: 100%;
 	width: 100%;
