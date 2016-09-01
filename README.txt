@@ -6,6 +6,9 @@ Automatic Analysis of Human Behavior
 -------------------------------------------------------------------------------
 Please run/check runDemo.sh
 
+For the web demo and further detail, please visit: 
+https://www.cs.rochester.edu/hci/currentprojects.php?proj=automanner
+
 Implementation details and how to cite:
 ======================================
 M. Iftekhar Tanveer, Ji Liu, M. Ehsan Hoque, "Unsupervised Extraction of Human-Interpretable Nonverbal Behavioral Cues in a Public Speaking Scenario", 23rd ACM Multimedia (ACMMM) Conference, Brisbane, Australia, 2015.
