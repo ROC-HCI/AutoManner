@@ -26,7 +26,8 @@ Details:
 For a web demo and further detail, please visit: 
 https://www.cs.rochester.edu/hci/currentprojects.php?proj=automanner
 
-*Algorithm and Implementational details:*
+Algorithm and Implementational details:
+======================================
 M. Iftekhar Tanveer, Ji Liu, M. Ehsan Hoque, "Unsupervised Extraction of Human-Interpretable Nonverbal Behavioral Cues in a Public Speaking Scenario", 23rd ACM Multimedia (ACMMM) Conference, Brisbane, Australia, 2015.
 
 M. Iftekhar Tanveer, Ru Zhao, Kezhen Chen, Zoe Tiet, M. Ehsan Hoque, "AutoManner: An Automated Interface for Making Public Speakers Aware of Their Mannerisms", ACM Intelligent User Interfaces (IUI), Sonoma, CA, USA, 2016.
