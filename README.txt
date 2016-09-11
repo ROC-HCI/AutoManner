@@ -37,4 +37,3 @@ Requests:
 Please cite the papers mentioned above if this code comes to any of your use.
 
 Please share your code if you make any modification to it.
-Please run/check runDemo.sh
