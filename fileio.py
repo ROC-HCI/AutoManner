@@ -98,9 +98,9 @@ def subsample(data,decimateratio):
                                                     decimateratio,axis=0)
     return sampledCSVdata
 
-# crop the data that falls within the [stframe,enframe] range
-def clean(data,stframe,enframe):
-    idx = (data[:,0]>=stframe)*(data[:,0]<=enframe)
+# crop the data that falls within the [stsec,ensec] range
+def clean(data,stsec,ensec):
+    idx = (data[:,0]>=30*stsec)*(data[:,0]<=30*ensec)
     data = data[idx,:]
     return data
 
