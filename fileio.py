@@ -100,7 +100,7 @@ def subsample(data,decimateratio):
 
 # crop the data that falls within the [stsec,ensec] range
 def clean(data,stsec,ensec):
-    idx = (data[:,0]>=30*stsec)*(data[:,0]<=30*ensec)
+    idx = (data[:,0]>=stsec)*(data[:,0]<=ensec)
     data = data[idx,:]
     return data
 
